@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Threading;
@@ -6,9 +7,12 @@ using System.Windows.Forms;
 
 namespace ShangtiPower
 {
-    /// <summary>主窗口：显示剩余电量，右上角关闭即退出。</summary>
+    /// <summary>主窗口：主页面（电量）+ 设置页面（同一窗口内切换，不弹第二个窗口）。</summary>
     public class MainForm : RoundedForm
     {
+        private const int PageMain = 0;
+        private const int PageSettings = 1;
+
         private AppConfig _cfg;
         private PowerResult _result;
         private string _error;
@@ -16,13 +20,23 @@ namespace ShangtiPower
         private DateTime _queriedAt;
         private double _animRatio;
         private double _targetRatio;
+        private int _pulse;
+        private int _page = PageMain;
+
         private ArcGauge _gauge;
         private AccentButton _btnRefresh;
         private AccentButton _btnSettings;
+
+        private AccentButton _btnRepick;
+        private DarkDropdown _threshold;
+        private ToggleSwitch _autoStart;
+        private AccentButton _btnSave;
+        private AccentButton _btnBack;
+
         private System.Windows.Forms.Timer _animTimer;
-        private int _pulse;
         private Rectangle _closeRect;
         private Rectangle _minRect;
+        private Rectangle _linkRect;
         private bool _hoverClose, _hoverMin;
 
         public MainForm(AppConfig cfg)
@@ -35,6 +49,24 @@ namespace ShangtiPower
             ShowInTaskbar = true;
             KeyPreview = true;
 
+            BuildMainPage();
+            BuildSettingsPage();
+
+            _animTimer = new System.Windows.Forms.Timer();
+            _animTimer.Interval = 16;
+            _animTimer.Tick += delegate { OnAnimTick(); };
+            _animTimer.Start();
+
+            if (Program.IsAutoStartEnabled() != _cfg.AutoStart) Program.SetAutoStart(_cfg.AutoStart);
+
+            Shown += delegate { RefreshPower(); };
+            FormClosed += delegate { Application.Exit(); };
+            ShowPage(PageMain);
+        }
+
+        // ------------------------------------------------------------ 主页面
+        private void BuildMainPage()
+        {
             _gauge = new ArcGauge();
             _gauge.SetBounds(60, 92, 300, 300);
             Controls.Add(_gauge);
@@ -47,24 +79,104 @@ namespace ShangtiPower
 
             _btnSettings = new AccentButton();
             _btnSettings.Text = "设置";
-            _btnSettings.Glyph = null;
             _btnSettings.ColorTop = Color.FromArgb(58, 64, 84);
             _btnSettings.ColorBottom = Color.FromArgb(42, 47, 63);
             _btnSettings.ForeColor = Theme.TextSecondary;
             _btnSettings.Font = Theme.F(13f, FontStyle.Bold);
             _btnSettings.SetBounds(300, 510, 92, 46);
-            _btnSettings.Click += delegate { OpenSettings(); };
+            _btnSettings.Click += delegate { ShowPage(PageSettings); };
             Controls.Add(_btnSettings);
+        }
 
-            _animTimer = new System.Windows.Forms.Timer();
-            _animTimer.Interval = 16;
-            _animTimer.Tick += delegate { OnAnimTick(); };
-            _animTimer.Start();
+        // ------------------------------------------------------------ 设置页面
+        private void BuildSettingsPage()
+        {
+            _btnRepick = new AccentButton();
+            _btnRepick.Text = "重新选择房间";
+            _btnRepick.ColorTop = Color.FromArgb(58, 64, 84);
+            _btnRepick.ColorBottom = Color.FromArgb(42, 47, 63);
+            _btnRepick.ForeColor = Theme.TextSecondary;
+            _btnRepick.Font = Theme.F(12.5f, FontStyle.Bold);
+            _btnRepick.SetBounds(24, 152, 180, 40);
+            _btnRepick.Click += delegate { Repick(); };
+            Controls.Add(_btnRepick);
 
-            if (Program.IsAutoStartEnabled() != _cfg.AutoStart) Program.SetAutoStart(_cfg.AutoStart);
+            _threshold = new DarkDropdown();
+            _threshold.Placeholder = "选择阈值";
+            _threshold.Font = Theme.F(13f, FontStyle.Regular);
+            _threshold.SetBounds(24, 248, 160, 40);
+            double[] options = new double[] { 10, 15, 20, 30, 50 };
+            for (int i = 0; i < options.Length; i++)
+                _threshold.AddItem(options[i].ToString("0") + " 度", options[i]);
+            Controls.Add(_threshold);
 
-            Shown += delegate { RefreshPower(); };
-            FormClosed += delegate { Application.Exit(); };
+            _autoStart = new ToggleSwitch();
+            _autoStart.SetBounds(24, 340, 46, 26);
+            Controls.Add(_autoStart);
+
+            _btnSave = new AccentButton();
+            _btnSave.Text = "保存";
+            _btnSave.SetBounds(24, 510, 240, 46);
+            _btnSave.Click += delegate { SaveSettings(); };
+            Controls.Add(_btnSave);
+
+            _btnBack = new AccentButton();
+            _btnBack.Text = "返回";
+            _btnBack.ColorTop = Color.FromArgb(58, 64, 84);
+            _btnBack.ColorBottom = Color.FromArgb(42, 47, 63);
+            _btnBack.ForeColor = Theme.TextSecondary;
+            _btnBack.Font = Theme.F(13f, FontStyle.Bold);
+            _btnBack.SetBounds(276, 510, 120, 46);
+            _btnBack.Click += delegate { ShowPage(PageMain); };
+            Controls.Add(_btnBack);
+        }
+
+        private void ShowPage(int page)
+        {
+            _page = page;
+            bool main = page == PageMain;
+            Theme.SetVisible(_gauge, main);
+            Theme.SetVisible(_btnRefresh, main);
+            Theme.SetVisible(_btnSettings, main);
+            Theme.SetVisible(_btnRepick, !main);
+            Theme.SetVisible(_threshold, !main);
+            Theme.SetVisible(_autoStart, !main);
+            Theme.SetVisible(_btnSave, !main);
+            Theme.SetVisible(_btnBack, !main);
+            if (!main) LoadSettingsIntoControls();
+            Invalidate(true);
+        }
+
+        private void LoadSettingsIntoControls()
+        {
+            if (_threshold.SelectedIndex < 0 || _threshold.ItemCount == 0) { }
+            _threshold.SelectByTag(_cfg.LowThreshold);
+            _autoStart.Checked = _cfg.AutoStart;
+        }
+
+        private void Repick()
+        {
+            using (SetupForm f = new SetupForm(_cfg))
+            {
+                if (f.ShowDialog(this) == DialogResult.OK && f.Result != null)
+                {
+                    _cfg = f.Result;
+                    RefreshPower();
+                }
+            }
+            Invalidate();
+        }
+
+        private void SaveSettings()
+        {
+            object tag = _threshold.SelectedTag;
+            if (tag != null) _cfg.LowThreshold = Convert.ToDouble(tag);
+            _cfg.AutoStart = _autoStart.Checked;
+            _cfg.DisplayName = _cfg.BuildDisplayName();
+            try { _cfg.Save(); } catch (Exception ex) { Program.Log("保存设置失败: " + ex.Message); }
+            try { Program.SetAutoStart(_cfg.AutoStart); } catch (Exception ex) { Program.Log("设置自启失败: " + ex.Message); }
+            ShowPage(PageMain);
+            RefreshPower();
         }
 
         // ------------------------------------------------------------ 查询
@@ -136,19 +248,6 @@ namespace ShangtiPower
             catch { }
         }
 
-        // ------------------------------------------------------------ 设置
-        private void OpenSettings()
-        {
-            using (SettingsForm f = new SettingsForm(_cfg))
-            {
-                if (f.ShowDialog(this) == DialogResult.OK)
-                {
-                    _cfg = f.Config;
-                    RefreshPower();
-                }
-            }
-        }
-
         // ------------------------------------------------------------ 动画
         private void OnAnimTick()
         {
@@ -182,18 +281,18 @@ namespace ShangtiPower
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
             PaintWindowFrame(g);
+            DrawTitleBar(g);
 
-            // 标题
+            if (_page == PageMain) PaintMainPage(g);
+            else PaintSettingsPage(g);
+        }
+
+        private void DrawTitleBar(Graphics g)
+        {
             Theme.Bolt(g, new RectangleF(24, 14, 14, 22), Theme.Green);
-            Theme.Text(g, "上体电量", Theme.F(15f, FontStyle.Bold), Theme.TextPrimary,
+            Theme.Text(g, _page == PageMain ? "上体电量" : "设置", Theme.F(15f, FontStyle.Bold), Theme.TextPrimary,
                 new RectangleF(46, 12, 200, 26), StringAlignment.Near);
 
-            // 房间
-            string room = _cfg == null ? "" : TrimRoom(_cfg.BuildDisplayName());
-            Theme.TextCenter(g, room, Theme.F(12f, FontStyle.Regular), Theme.TextSecondary,
-                new RectangleF(20, 52, ClientSize.Width - 40, 22));
-
-            // 右上按钮
             int by = 10;
             _minRect = new Rectangle(ClientSize.Width - 78, by, 30, 30);
             _closeRect = new Rectangle(ClientSize.Width - 44, by, 30, 30);
@@ -203,6 +302,14 @@ namespace ShangtiPower
                 _hoverMin ? Theme.TextPrimary : Theme.TextSecondary, _minRect);
             Theme.TextCenter(g, "✕", Theme.F(13f, FontStyle.Bold),
                 _hoverClose ? Color.White : Theme.TextSecondary, _closeRect);
+        }
+
+        private void PaintMainPage(Graphics g)
+        {
+            // 房间
+            string room = _cfg == null ? "" : TrimRoom(_cfg.BuildDisplayName());
+            Theme.TextCenter(g, room, Theme.F(12f, FontStyle.Regular), Theme.TextSecondary,
+                new RectangleF(20, 52, ClientSize.Width - 40, 22));
 
             // 状态胶囊
             if (_result != null && _error == null)
@@ -245,6 +352,31 @@ namespace ShangtiPower
             }
         }
 
+        private void PaintSettingsPage(Graphics g)
+        {
+            Theme.Text(g, "当前房间", Theme.F(11.5f, FontStyle.Bold), Theme.TextDim,
+                new RectangleF(24, 96, 200, 20), StringAlignment.Near);
+            Theme.Text(g, TrimRoom(_cfg.BuildDisplayName()), Theme.F(12.5f, FontStyle.Bold), Theme.TextPrimary,
+                new RectangleF(24, 118, 372, 24), StringAlignment.Near);
+
+            Theme.Text(g, "低电量提醒阈值", Theme.F(11.5f, FontStyle.Bold), Theme.TextDim,
+                new RectangleF(24, 222, 200, 20), StringAlignment.Near);
+            Theme.Text(g, "剩余电量低于这个值时，界面会变红提醒", Theme.F(10.5f, FontStyle.Regular), Theme.TextDim,
+                new RectangleF(196, 260, 200, 20), StringAlignment.Near);
+
+            Theme.Text(g, "开机自动运行", Theme.F(12.5f, FontStyle.Bold), Theme.TextPrimary,
+                new RectangleF(82, 340, 300, 26), StringAlignment.Near);
+            Theme.Text(g, "开机后自动弹窗显示电费", Theme.F(10.5f, FontStyle.Regular), Theme.TextDim,
+                new RectangleF(82, 360, 300, 18), StringAlignment.Near);
+
+            Theme.Text(g, "v" + Program.Version + "  ·  开源项目 · 欢迎打赏 ☕",
+                Theme.F(10.5f, FontStyle.Regular), Theme.TextDim,
+                new RectangleF(24, 430, 372, 20), StringAlignment.Near);
+            _linkRect = new Rectangle(24, 452, 372, 20);
+            Theme.Text(g, "GitHub 项目主页（点击打开）", Theme.F(10.5f, FontStyle.Underline), Theme.Blue,
+                new RectangleF(_linkRect.X, _linkRect.Y, _linkRect.Width, _linkRect.Height), StringAlignment.Near);
+        }
+
         private static string TrimRoom(string s)
         {
             if (string.IsNullOrEmpty(s)) return "";
@@ -282,6 +414,11 @@ namespace ShangtiPower
             if (_minRect.Contains(e.Location))
             {
                 WindowState = FormWindowState.Minimized;
+                return;
+            }
+            if (_page == PageSettings && _linkRect.Contains(e.Location))
+            {
+                try { Process.Start(new ProcessStartInfo(Program.RepoUrl) { UseShellExecute = true }); } catch { }
                 return;
             }
             base.OnMouseClick(e);

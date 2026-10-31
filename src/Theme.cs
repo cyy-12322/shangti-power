@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
@@ -19,6 +19,14 @@ namespace ShangtiPower
     /// <summary>统一视觉：颜色、字体、圆角、渐变、按钮、弧形电量表。</summary>
     public static class Theme
     {
+        public static void SetVisible(Control c, bool visible)
+        {
+            if (c == null) return;
+            // 注意：窗口句柄创建前 Control.Visible 读出来总是 false，
+            // 所以不能比较，必须无条件赋值，否则控件会在切换后仍然显示。
+            c.Visible = visible;
+        }
+
         public static readonly Color BgTop = Color.FromArgb(27, 30, 43);
         public static readonly Color BgBottom = Color.FromArgb(13, 15, 22);
         public static readonly Color Card = Color.FromArgb(35, 39, 54);
@@ -359,26 +367,40 @@ namespace ShangtiPower
             catch { }
         }
 
+        // 手动拖动：不要用 WM_NCLBUTTONDOWN/DefWindowProc 的移动循环——
+        // 那会把鼠标按下“吃掉”，导致窗体上自绘的 ✕ / — 按钮点不动。
+        private bool _dragging;
+        private Point _dragCursorStart;
+        private Point _dragWindowStart;
+        private bool _dragMoved;
+
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
             if (!AllowDrag || e.Button != MouseButtons.Left) return;
-            // 用非客户区消息启动窗口拖动（DefWindowProc 直接进入移动循环，不会回调 MouseDown）
-            try
-            {
-                ReleaseCapture();
-                SendMessage(Handle, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
-            }
-            catch (Exception ex) { Diag.Log("拖动窗口失败: " + ex.Message); }
+            _dragging = true;
+            _dragMoved = false;
+            _dragCursorStart = Cursor.Position;
+            _dragWindowStart = Location;
         }
 
-        protected override void WndProc(ref Message m)
+        protected override void OnMouseMove(MouseEventArgs e)
         {
-            base.WndProc(ref m);
-            if (m.Msg == WM_NCHITTEST && AllowDrag)
-            {
-                // 让无边框窗口在拖动区表现为标题栏
-            }
+            base.OnMouseMove(e);
+            if (!_dragging) return;
+            if ((e.Button & MouseButtons.Left) == 0) { _dragging = false; return; }
+            Point now = Cursor.Position;
+            int dx = now.X - _dragCursorStart.X;
+            int dy = now.Y - _dragCursorStart.Y;
+            if (!_dragMoved && (Math.Abs(dx) > 3 || Math.Abs(dy) > 3)) _dragMoved = true;
+            if (_dragMoved) Location = new Point(_dragWindowStart.X + dx, _dragWindowStart.Y + dy);
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            _dragging = false;
+            _dragMoved = false;
+            base.OnMouseUp(e);
         }
 
         protected void PaintWindowFrame(Graphics g)
