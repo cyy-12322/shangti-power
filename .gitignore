@@ -38,3 +38,7 @@ build/r[0-9]*.png
 
 build/repro-data/
 build/ci-*.log
+
+build/capture*.ps1
+build/repro*.ps1
+build/ui-data/
