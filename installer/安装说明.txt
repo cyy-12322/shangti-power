@@ -1,0 +1,40 @@
+【上体电量 · 安装说明】
+
+━━ 一、签名与 SmartScreen ━━
+本安装包已做代码签名，发布者显示为：ShangtiPower Local Dev
+· 在本机：证书已导入「受信任的根证书 / 受信任的发布者」，不应再弹拦截。
+· 如果仍然弹「已保护你的电脑」：说明你手里这份 exe 是从网上/聊天工具/网盘传过来的，
+  文件带了「网络来源」标记。右键 exe → 属性 → 最下方勾「解除锁定」→ 确定，再双击即可；
+  或点提示框「更多信息」→「仍要运行」。
+· 发给别人：自签名证书只在签署它的电脑上受信任，别人第一次运行仍会提示一次。
+  要让所有人都无提示，必须使用 CA（证书颁发机构）签发的代码签名证书，
+  见项目 README 的「代码签名」章节。
+
+━━ 二、安装位置怎么选 ━━
+默认：C:\Users\你的用户名\AppData\Local\Programs\ShangtiPower
+（当前用户目录，不需要管理员权限）
+也可以点「浏览…」装到 D 盘等任意位置。
+
+不要选 C:\Program Files、C:\Windows、或磁盘根目录 —— 这些位置需要管理员权限。
+本安装包遇到不可写的目录，会自动改到默认目录并在完成页提示，不会安装失败。
+
+━━ 三、如果仍然安装失败 ━━
+1) 建议直接用默认目录安装（别改路径）
+2) 完全退出 DeepSeek Harness（或重启电脑）后再运行安装包
+   —— 某些会话会限制程序往用户目录写文件
+3) 日志位置：%TEMP%\ShangtiPowerSetup\install.log
+   把这个文件内容发给我就能定位原因
+
+━━ 四、卸载 ━━
+设置 → 应用 → 已安装的应用 → 搜索「上体电量」→ 卸载
+或运行安装目录里的：ShangtiPower.exe --uninstall
+
+━━ 五、绿色免安装 ━━
+不想安装就直接双击同目录的 ShangtiPower.exe，
+不写注册表、不建安装记录，配置存在程序旁边或 %APPDATA%\ShangtiPower
+
+━━ 六、构建与重签名（开发者）━
+1) 编译：powershell -ExecutionPolicy Bypass -File .\build\build.ps1
+2) 编译+本机自签名：.\build\build.ps1 -Sign
+3) 用 CA 证书签名：.\build\build.ps1 -Sign -PfxPath "D:\cert\xxx.pfx" -PfxPassword "密码"
+4) 移除本机自签名信任：.\build\sign.ps1 -RemoveSelfSign

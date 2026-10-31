@@ -1,0 +1,52 @@
+# 拿到 SignPath Foundation 审批后启用本工作流（把注释去掉并填 3 个 ID）
+#
+# 本文件是「模板」，默认不会运行（只有手动触发且把 enabled 改为 true 时才执行）。
+# 审批通过后，SignPath 会给你：
+#   - organization-id
+#   - project-slug
+#   - signing-policy-slug
+#   - artifact-configuration-slug
+# 以及一个 API token（存到仓库 Secrets: SIGNPATH_API_TOKEN）。
+#
+# name: Release (signed)
+
+on:
+  workflow_dispatch:
+    inputs:
+      enabled:
+        description: 'Type yes to actually sign'
+        required: true
+        default: 'no'
+
+permissions:
+  contents: write
+
+jobs:
+  signed-release:
+    if: github.event.inputs.enabled == 'yes'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build unsigned artifacts
+        shell: pwsh
+        run: ./build/build.ps1
+
+      - name: Submit signing request to SignPath
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: 'REPLACE_WITH_ORG_ID'
+          project-slug: 'REPLACE_WITH_PROJECT_SLUG'
+          signing-policy-slug: 'REPLACE_WITH_POLICY_SLUG'
+          artifact-configuration-slug: 'REPLACE_WITH_ARTIFACT_CONFIG'
+          # 把待签名文件先打包上传（SignPath 支持 zip 作为输入）
+          github-artifact-id: ''
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Upload signed artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShangtiPower-signed
+          path: signed/**

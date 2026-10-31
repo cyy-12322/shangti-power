@@ -1,0 +1,28 @@
+# 编译产物
+dist/
+
+# 本地测试/截图产物
+build/testdata/
+build/*.png
+build/signing/
+build/cleanup*.ps1
+
+# 日志
+*.log
+logs/
+
+# 用户配置（不应提交）
+config.json
+%APPDATA%/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+bin/
+obj/
+
+# 临时
+*.tmp
+*.bak
