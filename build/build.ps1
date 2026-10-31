@@ -10,15 +10,24 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$csc = 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-if (-not (Test-Path $csc)) { throw '找不到 .NET Framework 编译器 csc.exe' }
+# 兼容不同 Windows 版本/CI 环境：依次尝试 Framework64 / Framework
+$cscCandidates = @(
+  (Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'),
+  (Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe')
+)
+$csc = $cscCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $csc) {
+  Write-Host ("已尝试: " + ($cscCandidates -join ' ; '))
+  throw '找不到 .NET Framework 编译器 csc.exe（请确认系统安装了 .NET Framework 4.x）'
+}
+Write-Host ("使用编译器: " + $csc)
 
 $outDir = Join-Path $root 'dist'
 if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir | Out-Null }
 $icon = Join-Path $root 'assets\query.ico'
 
 function Compile($outName, $sources, $extraArgs) {
-  $args = @(
+  $cscArgs = @(
     '/nologo',
     '/target:winexe',
     ('/out:"' + (Join-Path $outDir $outName) + '"'),
@@ -29,11 +38,11 @@ function Compile($outName, $sources, $extraArgs) {
     '/r:System.Web.Extensions.dll',
     '/platform:anycpu'
   )
-  if (-not $DebugBuild) { $args += '/optimize+' }
-  if (Test-Path $icon) { $args += ('/win32icon:"' + $icon + '"') }
-  $args += $extraArgs
-  $args += $sources
-  & $csc @args
+  if (-not $DebugBuild) { $cscArgs += '/optimize+' }
+  if (Test-Path $icon) { $cscArgs += ('/win32icon:"' + $icon + '"') }
+  if ($null -ne $extraArgs -and @($extraArgs).Count -gt 0) { $cscArgs += @($extraArgs) }
+  $cscArgs += @($sources)
+  & $csc @cscArgs
   if ($LASTEXITCODE -ne 0) { throw ('编译失败：' + $outName + '（退出码 ' + $LASTEXITCODE + '）') }
   $info = Get-Item (Join-Path $outDir $outName)
   Write-Host ('OK  ' + $info.Name + '  ' + [math]::Round($info.Length / 1KB, 1) + ' KB')
