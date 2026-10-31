@@ -82,7 +82,11 @@ jobs:
               --notes $notes
           }
 
-          # 清理历史遗留的错误附件名（中文文件名曾被 GitHub 改成 default.txt）
-          gh release delete-asset $tag default.txt --yes 2>$null
-          if ($LASTEXITCODE -eq 0) { "已删除遗留附件 default.txt" }
+          # 清理历史遗留的错误附件名（中文文件名曾被 GitHub 改成 default.txt）。
+          # 注意：附件不存在时 gh 返回非 0，不能让它污染本步骤的退出码。
+          $ErrorActionPreference = 'Continue'
+          gh release delete-asset $tag default.txt --yes 2>$null | Out-Null
+          "清理完成（附件不存在属正常）"
+
+          exit 0
 
