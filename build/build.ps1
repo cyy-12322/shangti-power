@@ -27,10 +27,12 @@ if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir | Out
 $icon = Join-Path $root 'assets\query.ico'
 
 function Compile($outName, $sources, $extraArgs) {
+  # 注意：不要把参数包在引号里。PowerShell 7 调用原生程序时按参数逐一传递，
+  # 数组元素里多余的引号会被当成文件名的一部分（CS2021: file name is too long or invalid）。
   $cscArgs = @(
     '/nologo',
     '/target:winexe',
-    ('/out:"' + (Join-Path $outDir $outName) + '"'),
+    ('/out:' + (Join-Path $outDir $outName)),
     '/r:System.dll',
     '/r:System.Core.dll',
     '/r:System.Windows.Forms.dll',
@@ -39,12 +41,13 @@ function Compile($outName, $sources, $extraArgs) {
     '/platform:anycpu'
   )
   if (-not $DebugBuild) { $cscArgs += '/optimize+' }
-  if (Test-Path $icon) { $cscArgs += ('/win32icon:"' + $icon + '"') }
+  if (Test-Path $icon) { $cscArgs += ('/win32icon:' + $icon) }
   if ($null -ne $extraArgs -and @($extraArgs).Count -gt 0) { $cscArgs += @($extraArgs) }
   $cscArgs += @($sources)
   & $csc @cscArgs
   if ($LASTEXITCODE -ne 0) { throw ('编译失败：' + $outName + '（退出码 ' + $LASTEXITCODE + '）') }
   $info = Get-Item (Join-Path $outDir $outName)
+
   Write-Host ('OK  ' + $info.Name + '  ' + [math]::Round($info.Length / 1KB, 1) + ' KB')
 }
 
