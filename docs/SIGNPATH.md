@@ -66,6 +66,44 @@
 > 注意：Homepage / Download / Privacy 三个 URL 必须**能直接打开**，
 > 所以 `PRIVACY.md`、`SECURITY.md`、Release 页都是必须存在的（本仓库已有）。
 
+### 表单里的 Tagline / Category / Description / Reputation
+
+**Tagline\***（一句话标语，别超过 80 字符）
+
+```
+Check your dorm's remaining electricity in one click.
+```
+
+**Category\***（下拉框，按选项选最接近的）
+
+优先级：`Desktop Application` → `Utilities` → `Other`（都有就填 Other 并在描述里说明）
+
+**Description\***（项目描述，一段话）
+
+```
+ShangtiPower is a small open-source Windows desktop utility that shows students of Shanghai
+University of Sport their dormitory's remaining electricity balance. It queries a public,
+login-free campus endpoint and renders the result in a compact native window with a dark UI.
+The app stores only the user's dorm selection locally, sends exactly one HTTP request per
+query, and contains no telemetry, no accounts and no third-party dependencies.
+It is written in C# (.NET Framework 4.8) and built reproducibly by GitHub Actions using the
+csc compiler that ships with Windows; all source and build scripts are public under MIT.
+```
+
+**Reputation\***（项目可信度/知名度说明 —— 新项目如实写，重点讲"可验证"）
+
+```
+New but fully public project. Released under the MIT license at
+https://github.com/cyy-12322/shangti-power with source code, build script, binaries,
+SHA-256 checksums and a privacy policy. It is used by a small group of students at
+Shanghai University of Sport for checking their own dormitory balance; there is no
+commercial distribution and no bundled third-party code. Every binary is produced by
+GitHub Actions directly from the public repository, so the build is reproducible and
+inspectable. No security incidents, no telemetry, no network activity other than the
+single balance query.
+```
+
+> 如果 Reputation 其实是**数字/星级**字段（例如填 star 数），新项目就填 `0` 或选 `New / Not yet established`，不要编数字。
 ### 如果表单还有额外的自由描述框（不同年份会变）
 
 **Project description**
