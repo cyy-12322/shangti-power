@@ -1,5 +1,0 @@
-使用编译器: C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe
-[1/2] 编译主程序（10 个源文件）
-OK  ShangtiPower.exe  86 KB
-[2/2] 编译安装包（4 个源文件，内嵌主程序）
-fatal error CS2021: File name '"D:\a\shangti-power\shangti-power\dist\ShangtiPower.exe"' is too long or invalid
