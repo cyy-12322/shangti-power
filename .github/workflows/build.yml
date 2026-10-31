@@ -52,7 +52,7 @@ jobs:
           if (-not (Test-Path ci-build.log)) { "no build.log produced" | Set-Content ci-build.log -Encoding utf8 }
           git add -f ci-build.log
           git commit -m "ci: build log [skip ci]"
-          git push origin HEAD:refs/heads/ci-logs
+          git push --force origin HEAD:refs/heads/ci-logs
           if ($LASTEXITCODE -ne 0) {
             git fetch origin main
             git checkout main

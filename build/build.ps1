@@ -44,6 +44,7 @@ function Compile($outName, $sources, $extraArgs) {
   if (Test-Path $icon) { $cscArgs += ('/win32icon:' + $icon) }
   if ($null -ne $extraArgs -and @($extraArgs).Count -gt 0) { $cscArgs += @($extraArgs) }
   $cscArgs += @($sources)
+  Write-Host ("  csc " + (($cscArgs) -join " "))
   & $csc @cscArgs
   if ($LASTEXITCODE -ne 0) { throw ('编译失败：' + $outName + '（退出码 ' + $LASTEXITCODE + '）') }
   $info = Get-Item (Join-Path $outDir $outName)
@@ -66,7 +67,7 @@ $setupSources = @()
 $setupSources += (Join-Path $root 'src\Theme.cs')
 $setupSources += @(Get-ChildItem (Join-Path $root 'installer') -Filter '*.cs' | ForEach-Object { $_.FullName })
 Write-Host ('[2/2] 编译安装包（' + $setupSources.Count + ' 个源文件，内嵌主程序）')
-$resource = '/resource:"' + (Join-Path $outDir 'ShangtiPower.exe') + '",ShangtiPowerApp.exe'
+$resource = '/resource:' + (Join-Path $outDir 'ShangtiPower.exe') + ',ShangtiPowerApp.exe'
 Compile 'ShangtiPowerSetup.exe' $setupSources @($resource)
 if ($Sign) {
   Write-Host '[sign] 签名安装包'
