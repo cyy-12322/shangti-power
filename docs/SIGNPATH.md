@@ -45,83 +45,57 @@
 
 ---
 
-## 四、申请表文案（可直接粘贴/改写）
+## 四、申请表：逐项怎么填（照抄即可）
 
-**Project name**
+| 表单字段 | 填什么 |
+| --- | --- |
+| **Repository URL** | `https://github.com/cyy-12322/shangti-power` |
+| **Homepage URL** | `https://github.com/cyy-12322/shangti-power` |
+| **Download URL** | `https://github.com/cyy-12322/shangti-power/releases` |
+| **Privacy Policy URL** | `https://github.com/cyy-12322/shangti-power/blob/main/PRIVACY.md` |
+| **Wikipedia URL** | 留空（可选字段） |
+| **Maintainer Type** | 选 **Individual**（个人开发者）；没有这个选项就选 Individual/Personal |
+| **Build System** | 选 **GitHub Actions** |
+| **First Name** | 你的名（如 `Yu` 或 `雨`） |
+| **Last Name** | 你的姓（如 `Chen` 或 `陈`） |
+| **Email** | `2744438196@qq.com` |
+| **Company Name** | 填 `N/A`（个人项目，没有公司就写 N/A 或留空） |
+| **Primary Discovery Channel** | 选 **GitHub**（没有该选项就选 Other） |
+| **Please specify the exact source** | `GitHub repository search; shared among classmates at Shanghai University of Sport` |
 
-```
-ShangtiPower (上体电量)
-```
+> 注意：Homepage / Download / Privacy 三个 URL 必须**能直接打开**，
+> 所以 `PRIVACY.md`、`SECURITY.md`、Release 页都是必须存在的（本仓库已有）。
 
-**Repository URL**
+### 如果表单还有额外的自由描述框（不同年份会变）
 
-```
-https://github.com/cyy-12322/shangti-power
-```
-
-**Short description**
+**Project description**
 
 ```
 ShangtiPower is a tiny open-source Windows desktop tool that shows students of Shanghai
 University of Sport their dormitory's remaining electricity balance. It queries a public,
-login-free campus endpoint and displays the result in a small native window. It contains no
-telemetry, no account system and no network activity other than the single balance query.
-```
-
-**License**
-
-```
-MIT
-```
-
-**Programming language / build**
-
-```
-C# (.NET Framework 4.8), built with the compiler shipped by Windows (csc.exe).
-No NuGet, no npm, no private dependencies.
+login-free campus endpoint and displays the result in a small native window. No telemetry,
+no accounts, one HTTP request per query.
 ```
 
 **Build instructions**
 
 ```
-Windows runner (windows-latest):
+Windows (GitHub Actions, windows-latest):
   powershell -ExecutionPolicy Bypass -File .\build\build.ps1
 
 Outputs:
-  dist\ShangtiPower.exe        (main application, ~86 KB)
-  dist\ShangtiPowerSetup.exe   (installer, embeds the main exe)
+  dist\ShangtiPower.exe        main application (~86 KB)
+  dist\ShangtiPowerSetup.exe   installer, embeds the main exe (~148 KB)
 
-A release is produced by pushing a v* tag; the GitHub Actions workflow builds both
-binaries and publishes them via `gh release create`.
+No NuGet, no npm, no private dependencies — only the csc.exe that ships with Windows.
 ```
 
-**Artifacts to be signed**
+**Artifacts to sign**
 
 ```
 dist\ShangtiPower.exe
 dist\ShangtiPowerSetup.exe
 ```
-
-**Why do you need signing?**
-
-```
-The binaries are currently unsigned, so every user sees the Windows SmartScreen
-"unrecognized app" warning on first run, which makes the tool look suspicious.
-We are a small non-commercial student utility with no revenue; a paid CA certificate
-is not affordable. SignPath Foundation signing would remove that warning and let users
-verify the binary was built from our public repository.
-```
-
-**Anything else**
-
-```
-The app queries https://axinfu.sus.edu.cn:8082 (with the URL configurable) and stores the
-user's dorm selection locally. It never uploads personal data. Source is fully open and
-the build is reproducible from a clean checkout with the command above.
-```
-
----
-
 ## 五、审批通过后要做什么
 
 1. 在仓库 **Settings → Secrets and variables → Actions** 添加：
