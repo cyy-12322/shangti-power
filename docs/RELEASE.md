@@ -33,7 +33,7 @@ git commit -m "release: v1.0.0"
 git push origin main
 ```
 
-## 四、打 tag（自动触发 CI 打包 + 发布）
+## 四、发布（自动触发 CI 打包 + 发布）
 
 ```bash
 git tag v1.0.0

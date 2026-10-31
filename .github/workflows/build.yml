@@ -83,10 +83,6 @@ jobs:
           }
 
           # 清理历史遗留的错误附件名（中文文件名曾被 GitHub 改成 default.txt）
-          $ids = gh release view $tag --json assets --jq '.assets[] | select(.name == "default.txt") | .id'
-          foreach ($id in ($ids -split "`n")) {
-            if ([string]::IsNullOrWhiteSpace($id)) { continue }
-            gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$id" | Out-Null
-            "已删除遗留附件 default.txt (id=$id)"
-          }
+          gh release delete-asset $tag default.txt --yes 2>$null
+          if ($LASTEXITCODE -eq 0) { "已删除遗留附件 default.txt" }
 
