@@ -32,3 +32,6 @@ obj/
 /*.pdb
 
 ci-build.log
+
+build/repro*.ps1
+build/r[0-9]*.png

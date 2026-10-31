@@ -1,0 +1,4 @@
+﻿22:02:40  SELFTEST-SETUP start prefill=杨浦校区 · 05号楼 · 5-7楼 · 5-718
+22:02:40  SELFTEST-SETUP OK
+22:02:40  SELFTEST-SETUP end
+22:05:25  ShangtiPower 1.0.1

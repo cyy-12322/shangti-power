@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -26,7 +26,9 @@ namespace ShangtiPower
 
         public AppConfig Result { get { return _result; } }
 
-        public SetupForm(AppConfig prefill)
+        public SetupForm(AppConfig prefill) : this(prefill, false) { }
+
+        public SetupForm(AppConfig prefill, bool skipLoad)
         {
             _prefill = prefill;
             Text = "初次设置";
@@ -76,7 +78,7 @@ namespace ShangtiPower
             _btnCancel.Click += delegate { DialogResult = DialogResult.Cancel; Close(); };
             Controls.Add(_btnCancel);
 
-            Shown += delegate { LoadLevels(); };
+            if (!skipLoad) Shown += delegate { LoadLevels(); };
         }
 
 
@@ -91,14 +93,18 @@ namespace ShangtiPower
             if (_busy) return;
             _busy = true;
             SetStatus("正在加载学校数据…", false);
+            Program.Log("LoadLevels: 开始请求学校层级");
             ThreadPool.QueueUserWorkItem(delegate(object st)
             {
                 try
                 {
+                    Program.Log("LoadLevels: 请求层级中…");
                     List<LevelDef> levels = _api.GetLevels(15000);
+                    Program.Log("LoadLevels: 层级 OK, count=" + levels.Count);
                     if (levels.Count < 4)
                         throw new Exception("学校接口返回的层级不足（" + levels.Count + "）");
                     List<RoomOption> first = _api.GetOptions(levels[0], null, 15000);
+                    Program.Log("LoadLevels: 校区选项 OK, count=" + first.Count);
                     SafeInvoke(delegate
                     {
                         _levels = levels;
@@ -109,9 +115,17 @@ namespace ShangtiPower
                             _labels[2] = string.IsNullOrEmpty(levels[2].Remark) ? "楼层" : levels[2].Remark;
                             _labels[3] = string.IsNullOrEmpty(levels[3].Remark) ? "房间" : levels[3].Remark;
                         }
+                        Program.Log("LoadLevels: UI 回调开始");
                         FillCombo(0, first);
+                        Program.Log("LoadLevels: FillCombo(0) 完成");
                         _combos[0].Enabled = first.Count > 0;
                         _busy = false;
+                        // 预填（重新选择房间）时，自动继续级联加载下一级
+                        if (_combos[0].SelectedIndex >= 0)
+                        {
+                            Program.Log("LoadLevels: 预填校区 -> 继续级联");
+                            OnComboChanged(0);
+                        }
                         SetStatus("请依次选择；选好后点「保存并开始」", false);
                         Invalidate();
                     });
@@ -202,13 +216,23 @@ namespace ShangtiPower
             {
                 try
                 {
+                    Program.Log("级联: 请求 " + _labels[index + 1] + " 选项");
                     List<RoomOption> opts = _api.GetOptions(next, snapshot, 15000);
+                    Program.Log("级联: " + _labels[index + 1] + " 选项 OK, count=" + opts.Count);
                     SafeInvoke(delegate
                     {
                         _busy = false;
                         FillCombo(index + 1, opts);
                         _combos[index + 1].Enabled = opts.Count > 0;
-                        SetStatus(opts.Count > 0 ? ("请选择" + _labels[index + 1]) : ("没有可选的" + _labels[index + 1]), opts.Count == 0);
+                        bool prefilled = _combos[index + 1].SelectedIndex >= 0;
+                        if (!prefilled)
+                            SetStatus(opts.Count > 0 ? ("请选择" + _labels[index + 1]) : ("没有可选的" + _labels[index + 1]), opts.Count == 0);
+                        // 预填命中：继续级联下一级（最后一级会自己把状态/按钮设置好）
+                        if (prefilled)
+                        {
+                            Program.Log("级联: 预填 " + _labels[index + 1] + " -> 继续级联");
+                            OnComboChanged(index + 1);
+                        }
                     });
                 }
                 catch (Exception ex)
@@ -220,6 +244,48 @@ namespace ShangtiPower
                     });
                 }
             });
+        }
+
+        /// <summary>自测：按顺序自动选完四级，用于验证级联逻辑不崩溃。</summary>
+        internal void DebugTick(System.Windows.Forms.Timer timer)
+        {
+            try
+            {
+                if (_levels == null) { Program.Log("selftest: levels 未加载"); return; }
+                int sel = -1;
+                for (int i = 0; i < 4; i++) if (_combos[i].SelectedIndex >= 0) sel = i;
+                if (sel >= 3)
+                {
+                    timer.Stop();
+                    Program.Log("selftest: 四级全部选好 -> " + _combos[0].SelectedText + " / " + _combos[1].SelectedText + " / " + _combos[2].SelectedText + " / " + _combos[3].SelectedText);
+                    Program.Emit("SELFTEST-SETUP OK");
+                    DialogResult = DialogResult.OK;
+                    Close();
+                    return;
+                }
+                int next = sel + 1;
+                DarkDropdown cb = _combos[next];
+                Program.Log("selftest tick: sel=" + sel + " next=" + next + " enabled=" + cb.Enabled + " items=" + cb.ItemCount + " sel0='" + _combos[0].SelectedText + "'");
+                if (cb.SelectedIndex < 0 && cb.Enabled && cb.ItemCount > 0)
+                {
+                    Program.Log("selftest: 选中第 " + next + " 级 -> " + cb.GetTexts()[0]);
+                    cb.DebugCommit(0);
+                    return;
+                }
+                // 预填时会自动选中第一级但不触发级联，这里手动触发一次
+                if (sel >= 0 && sel < 3 && !cb.Enabled && cb.ItemCount == 0)
+                {
+                    Program.Log("selftest: 手动触发第 " + sel + " 级的级联加载");
+                    OnComboChanged(sel);
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.Log("selftest 异常: " + ex.GetType().Name + " -> " + ex.Message);
+                Program.Emit("SELFTEST-SETUP FAIL: " + ex.Message);
+                timer.Stop();
+                Close();
+            }
         }
 
         private AppConfig CloneWorking()

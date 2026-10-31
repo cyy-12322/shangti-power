@@ -18,7 +18,7 @@ namespace ShangtiPower
     {
         public const string AppName = "上体电量";
         public const string AppId = "ShangtiPower";
-        public const string Version = "1.0.0";
+        public const string Version = "1.0.1";
         public const string RepoUrl = "https://github.com/cyy-12322/shangti-power";
 
         private static string _dataDir;
@@ -333,7 +333,14 @@ namespace ShangtiPower
         [STAThread]
         static int Main(string[] args)
         {
+            AppDomain.CurrentDomain.UnhandledException += delegate(object s, UnhandledExceptionEventArgs e)
+            {
+                Exception ex = e.ExceptionObject as Exception;
+                Log("!!! 未捕获异常: " + (ex == null ? e.ExceptionObject.ToString() : ex.ToString()));
+                Emit("UNHANDLED: " + (ex == null ? "?" : ex.GetType().Name + " " + ex.Message));
+            };
             try { SetProcessDPIAware(); } catch { }
+            Diag.Sink = delegate(string m) { Log(m); };
             ConfigureTls();
 
             if (HasArg(args, "--install-autostart")) { SetAutoStart(true); Emit(IsAutoStartEnabled() ? "autostart=on" : "autostart=FAILED"); return 0; }
@@ -344,6 +351,38 @@ namespace ShangtiPower
                 return 0;
             }
             if (HasArg(args, "--version")) { Emit("ShangtiPower " + Version); return 0; }
+
+            if (HasArg(args, "--preview-setup"))
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Emit("PREVIEW-SETUP start");
+                Application.Run(new SetupForm(AppConfig.Load(), true));
+                Emit("PREVIEW-SETUP end");
+                return 0;
+            }
+
+            if (HasArg(args, "--selftest-setup"))
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+                Application.ThreadException += delegate(object s, System.Threading.ThreadExceptionEventArgs e)
+                {
+                    Log("UI 异常(selftest-setup): " + (e.Exception == null ? "?" : e.Exception.ToString()));
+                    Emit("SELFTEST-SETUP UI-EXCEPTION: " + (e.Exception == null ? "?" : e.Exception.Message));
+                };
+                AppConfig pre = AppConfig.Load();
+                Emit("SELFTEST-SETUP start prefill=" + (pre == null ? "(none)" : pre.DisplayName));
+                SetupForm f = new SetupForm(pre);
+                System.Windows.Forms.Timer t = new System.Windows.Forms.Timer();
+                t.Interval = 400;
+                t.Tick += delegate { f.DebugTick(t); };
+                f.Shown += delegate { t.Start(); };
+                Application.Run(f);
+                Emit("SELFTEST-SETUP end");
+                return 0;
+            }
 
             if (HasArg(args, "--preview-dropdown"))
             {

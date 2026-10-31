@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
@@ -6,6 +6,16 @@ using System.Windows.Forms;
 
 namespace ShangtiPower
 {
+    /// <summary>UI 诊断日志（Theme.cs 同时被安装包编译，不能直接依赖 Program）。</summary>
+    public static class Diag
+    {
+        public static Action<string> Sink;
+        public static void Log(string msg)
+        {
+            try { if (Sink != null) Sink(msg); } catch { }
+        }
+    }
+
     /// <summary>统一视觉：颜色、字体、圆角、渐变、按钮、弧形电量表。</summary>
     public static class Theme
     {
@@ -310,7 +320,9 @@ namespace ShangtiPower
         private const int WM_NCHITTEST = 0x84;
         private const int HTCLIENT = 1;
         private const int HTCAPTION = 2;
-        private const int WM_LBUTTONDOWN = 0x0201;
+        // 注意：必须用「非客户区」按下消息。若用 WM_LBUTTONDOWN，WinForms 会把它当成
+        // 一次普通鼠标按下再次触发 OnMouseDown，形成无限递归 → StackOverflowException（闪退）。
+        private const int WM_NCLBUTTONDOWN = 0xA1;
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool ReleaseCapture();
@@ -350,11 +362,14 @@ namespace ShangtiPower
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
-            if (AllowDrag && e.Button == MouseButtons.Left)
+            if (!AllowDrag || e.Button != MouseButtons.Left) return;
+            // 用非客户区消息启动窗口拖动（DefWindowProc 直接进入移动循环，不会回调 MouseDown）
+            try
             {
                 ReleaseCapture();
-                SendMessage(Handle, WM_LBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
+                SendMessage(Handle, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
             }
+            catch (Exception ex) { Diag.Log("拖动窗口失败: " + ex.Message); }
         }
 
         protected override void WndProc(ref Message m)

@@ -106,6 +106,9 @@ namespace ShangtiPower
 
         internal void ClosePopup() { _popup = null; }
 
+        /// <summary>仅用于自动化自测：模拟用户点选某一项。</summary>
+        internal void DebugCommit(int index) { CommitSelection(index); }
+
         /// <summary>仅用于自动化截图/调试。</summary>
         internal void OpenPopupForTest(bool keepOpen) { OpenPopup(keepOpen); }
 
