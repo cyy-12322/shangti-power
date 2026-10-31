@@ -30,3 +30,5 @@ obj/
 # 根目录误编译产物
 /*.exe
 /*.pdb
+
+ci-build.log
