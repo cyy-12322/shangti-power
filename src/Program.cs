@@ -18,7 +18,7 @@ namespace ShangtiPower
     {
         public const string AppName = "上体电量";
         public const string AppId = "ShangtiPower";
-        public const string Version = "1.0.2";
+        public const string Version = "1.0.3";
         public const string RepoUrl = "https://github.com/cyy-12322/shangti-power";
 
         private static string _dataDir;

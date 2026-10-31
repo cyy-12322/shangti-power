@@ -277,9 +277,15 @@ namespace ShangtiPower
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            float size = Math.Min(Width, Height) - 18f;
+            // 关键：把画笔粗细和光晕都算进边距，否则圆弧会超出控件边界，
+            // 在上下左右被裁出“平口”（之前主界面圆环被切掉就是这个原因）。
+            float box = Math.Min(Width, Height);
+            float thick = Math.Max(10f, box * 0.072f);
+            float glowExtra = 10f;
+            float margin = (thick + glowExtra) / 2f + 2f;
+            float size = box - margin * 2f;
+
             RectangleF ring = new RectangleF((Width - size) / 2f, (Height - size) / 2f, size, size);
-            float thick = Math.Max(10f, size * 0.075f);
 
             // 背景环
             using (Pen bg = new Pen(Color.FromArgb(46, 255, 255, 255), thick))
@@ -293,7 +299,7 @@ namespace ShangtiPower
             float sweep = (float)(270.0 * Math.Max(0.0, Math.Min(1.0, Ratio)));
             if (sweep > 0.5f)
             {
-                using (Pen glow = new Pen(Color.FromArgb(60, Accent), thick + 10f))
+                using (Pen glow = new Pen(Color.FromArgb(60, Accent), thick + glowExtra))
                 {
                     glow.StartCap = LineCap.Round;
                     glow.EndCap = LineCap.Round;
@@ -307,17 +313,17 @@ namespace ShangtiPower
                 }
             }
 
-            // 中心文字
-            RectangleF valRect = new RectangleF(0, Height / 2f - size * 0.19f, Width, size * 0.30f);
-            Theme.TextCenter(g, ValueText, Theme.F(Math.Max(30f, size * 0.26f), FontStyle.Bold), Theme.TextPrimary, valRect);
+            // 中心文字（字号按整个控件尺寸算，保持视觉大小不变）
+            RectangleF valRect = new RectangleF(0, Height / 2f - box * 0.19f, Width, box * 0.30f);
+            Theme.TextCenter(g, ValueText, Theme.F(Math.Max(30f, box * 0.245f), FontStyle.Bold), Theme.TextPrimary, valRect);
 
-            RectangleF unitRect = new RectangleF(0, Height / 2f + size * 0.075f, Width, size * 0.16f);
-            Theme.TextCenter(g, UnitText, Theme.F(Math.Max(12f, size * 0.085f), FontStyle.Regular), Theme.TextSecondary, unitRect);
+            RectangleF unitRect = new RectangleF(0, Height / 2f + box * 0.075f, Width, box * 0.16f);
+            Theme.TextCenter(g, UnitText, Theme.F(Math.Max(12f, box * 0.08f), FontStyle.Regular), Theme.TextSecondary, unitRect);
 
             if (!string.IsNullOrEmpty(Caption))
             {
-                RectangleF capRect = new RectangleF(0, Height / 2f + size * 0.22f, Width, size * 0.16f);
-                Theme.TextCenter(g, Caption, Theme.F(Math.Max(11f, size * 0.075f), FontStyle.Regular), Theme.TextDim, capRect);
+                RectangleF capRect = new RectangleF(0, Height / 2f + box * 0.22f, Width, box * 0.16f);
+                Theme.TextCenter(g, Caption, Theme.F(Math.Max(11f, box * 0.072f), FontStyle.Regular), Theme.TextDim, capRect);
             }
         }
     }
@@ -328,17 +334,23 @@ namespace ShangtiPower
         private const int WM_NCHITTEST = 0x84;
         private const int HTCLIENT = 1;
         private const int HTCAPTION = 2;
-        // 注意：必须用「非客户区」按下消息。若用 WM_LBUTTONDOWN，WinForms 会把它当成
-        // 一次普通鼠标按下再次触发 OnMouseDown，形成无限递归 → StackOverflowException（闪退）。
-        private const int WM_NCLBUTTONDOWN = 0xA1;
+        private const int WS_MINIMIZEBOX = 0x00020000;
+        private const int WS_SYSMENU = 0x00080000;
+        // Windows 11 原生圆角（DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWCP_ROUND = 2）
+        private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool ReleaseCapture();
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
 
         public float CornerRadius { get; set; }
         public bool AllowDrag { get; set; }
+
+        /// <summary>系统是否接管了圆角（Win11）。接管后不再用 Region 裁剪，圆角更平滑、窗口动画也正常。</summary>
+        private bool _useDwmCorners;
 
         public RoundedForm()
         {
@@ -349,12 +361,50 @@ namespace ShangtiPower
             AllowDrag = true;
             BackColor = Theme.BgBottom;
             SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
+            ApplyAppIcon();
+        }
+
+        private void ApplyAppIcon()
+        {
+            try
+            {
+                Icon ico = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+                if (ico != null) Icon = ico;
+                Diag.Log("窗口图标: " + (Icon != null ? "已加载" : "缺失"));
+            }
+            catch { }
+        }
+
+        /// <summary>加上最小化/系统菜单样式，任务栏行为与普通窗口一致（含最小化动画）。</summary>
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                CreateParams cp = base.CreateParams;
+                cp.Style |= WS_MINIMIZEBOX | WS_SYSMENU;
+                return cp;
+            }
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            try
+            {
+                int pref = 2; // DWMWCP_ROUND
+                int hr = DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int));
+                _useDwmCorners = (hr == 0);
+            }
+            catch { _useDwmCorners = false; }
+
+            Diag.Log("窗口圆角: " + (_useDwmCorners ? "系统原生(DWM)" : "Region 回退(Win10)"));
+            if (!_useDwmCorners) ApplyRoundedRegion(); // Win10 回退：用 Region 裁剪
         }
 
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
-            ApplyRoundedRegion();
+            if (!_useDwmCorners) ApplyRoundedRegion();
         }
 
         private void ApplyRoundedRegion()
