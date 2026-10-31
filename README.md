@@ -27,7 +27,7 @@
 
 ### 方式一：安装包（推荐）
 
-1. 从 Releases 下载 **`ShangtiPowerSetup.exe`**
+1. 从 [Releases](https://github.com/cyy-12322/shangti-power/releases) 下载 **`ShangtiPowerSetup.exe`**
 2. 双击运行安装包：
    - 阅读并同意 **许可协议**（MIT + 免责声明）
    - 选择 **安装位置**（默认当前用户目录，可改到 D 盘等任意目录，无需管理员）
