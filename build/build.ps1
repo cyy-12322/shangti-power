@@ -75,7 +75,12 @@ if ($Sign) {
   else { & (Join-Path $PSScriptRoot 'sign.ps1') -SelfSign -TrustLocal -File 'ShangtiPowerSetup.exe' }
 }
 
-# 3) 附带使用说明
+# 3) 附带使用说明 + 一键解除锁定工具
+$unblock = Join-Path $root 'installer\Install-Unblocked.cmd'
+if (Test-Path $unblock) {
+  Copy-Item $unblock (Join-Path $outDir 'Install-Unblocked.cmd') -Force
+  Write-Host 'OK  Install-Unblocked.cmd'
+}
 $readmeSrc = Join-Path $root 'installer\安装说明.txt'
 if (Test-Path $readmeSrc) {
   Copy-Item $readmeSrc (Join-Path $outDir '安装说明.txt') -Force
