@@ -18,7 +18,7 @@ namespace ShangtiPower
     {
         public const string AppName = "宿电监测";
         public const string AppId = "SudianMonitor";
-        public const string Version = "1.3.6";
+        public const string Version = "1.3.7";
         public const string RepoUrl = "https://github.com/cyy-12322/shangti-power";
 
         /// <summary>演示模式：不访问网络，用示例数据渲染界面（仅用于截图/设计评审）。</summary>
