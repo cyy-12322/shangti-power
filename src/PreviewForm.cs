@@ -42,7 +42,6 @@ namespace ShangtiPower
         {
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            PaintWindowFrame(g);
             Theme.Text(g, "下拉滚动测试（18 项）", Theme.F(16f, FontStyle.Bold), Theme.TextPrimary,
                 new RectangleF(40, 34, 380, 30), StringAlignment.Near);
             Theme.Text(g, "滚轮可滚动，右侧有滚动条", Theme.F(11f, FontStyle.Regular), Theme.TextSecondary,

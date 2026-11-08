@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -70,9 +70,10 @@ namespace ShangtiPower
 
             _btnCancel = new AccentButton();
             _btnCancel.Text = "取消";
-            _btnCancel.ColorTop = Color.FromArgb(58, 64, 84);
-            _btnCancel.ColorBottom = Color.FromArgb(42, 47, 63);
-            _btnCancel.ForeColor = Theme.TextSecondary;
+            _btnCancel.ColorTop = Theme.SecondaryTop;
+            _btnCancel.ColorBottom = Theme.SecondaryBottom;
+            _btnCancel.BorderColor = Theme.CardBorder;
+            _btnCancel.ForeColor = Theme.SecondaryText;
             _btnCancel.Font = Theme.F(13f, FontStyle.Bold);
             _btnCancel.SetBounds(352, 528, 88, 46);
             _btnCancel.Click += delegate { DialogResult = DialogResult.Cancel; Close(); };
@@ -348,8 +349,6 @@ namespace ShangtiPower
         {
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            PaintWindowFrame(g);
-
             Theme.Text(g, "初次设置", Theme.F(20f, FontStyle.Bold), Theme.TextPrimary,
                 new RectangleF(40, 22, 300, 30), StringAlignment.Near);
             Theme.Text(g, "选择你的宿舍位置，只需设置一次，之后自动记住", Theme.F(12f, FontStyle.Regular),

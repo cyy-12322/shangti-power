@@ -55,11 +55,16 @@ function Compile($outName, $sources, $extraArgs) {
 # 1) 主程序
 $appSources = @(Get-ChildItem (Join-Path $root 'src') -Filter '*.cs' | ForEach-Object { $_.FullName })
 Write-Host ('[1/2] 编译主程序（' + $appSources.Count + ' 个源文件）')
-Compile 'ShangtiPower.exe' $appSources @()
+$donateRes = Join-Path $root 'assets\donate.jpg'
+$appResources = @()
+if (Test-Path $donateRes) { $appResources += ('/resource:' + $donateRes + ',DonateImage.jpg'); Write-Host '内嵌赞赏码: donate.jpg' }
+$logoRes = Join-Path $root 'assets\logo-96.png'
+if (Test-Path $logoRes) { $appResources += ('/resource:' + $logoRes + ',LogoImage.png'); Write-Host '内嵌应用图标: logo-96.png' }
+Compile '宿电监测.exe' $appSources $appResources
 if ($Sign) {
   Write-Host '[sign] 签名主程序'
-  if ($PfxPath) { & (Join-Path $PSScriptRoot 'sign.ps1') -PfxPath $PfxPath -PfxPassword $PfxPassword -File 'ShangtiPower.exe' }
-  else { & (Join-Path $PSScriptRoot 'sign.ps1') -SelfSign -TrustLocal -File 'ShangtiPower.exe' }
+  if ($PfxPath) { & (Join-Path $PSScriptRoot 'sign.ps1') -PfxPath $PfxPath -PfxPassword $PfxPassword -File '宿电监测.exe' }
+  else { & (Join-Path $PSScriptRoot 'sign.ps1') -SelfSign -TrustLocal -File '宿电监测.exe' }
 }
 
 # 2) 安装包（内嵌主程序）
@@ -67,12 +72,12 @@ $setupSources = @()
 $setupSources += (Join-Path $root 'src\Theme.cs')
 $setupSources += @(Get-ChildItem (Join-Path $root 'installer') -Filter '*.cs' | ForEach-Object { $_.FullName })
 Write-Host ('[2/2] 编译安装包（' + $setupSources.Count + ' 个源文件，内嵌主程序）')
-$resource = '/resource:' + (Join-Path $outDir 'ShangtiPower.exe') + ',ShangtiPowerApp.exe'
-Compile 'ShangtiPowerSetup.exe' $setupSources @($resource)
+$resource = '/resource:' + (Join-Path $outDir '宿电监测.exe') + ',SudiApp.exe'
+Compile '宿电监测安装包.exe' $setupSources @($resource)
 if ($Sign) {
   Write-Host '[sign] 签名安装包'
-  if ($PfxPath) { & (Join-Path $PSScriptRoot 'sign.ps1') -PfxPath $PfxPath -PfxPassword $PfxPassword -File 'ShangtiPowerSetup.exe' }
-  else { & (Join-Path $PSScriptRoot 'sign.ps1') -SelfSign -TrustLocal -File 'ShangtiPowerSetup.exe' }
+  if ($PfxPath) { & (Join-Path $PSScriptRoot 'sign.ps1') -PfxPath $PfxPath -PfxPassword $PfxPassword -File '宿电监测安装包.exe' }
+  else { & (Join-Path $PSScriptRoot 'sign.ps1') -SelfSign -TrustLocal -File '宿电监测安装包.exe' }
 }
 
 # 3) 附带使用说明 + 一键解除锁定工具
@@ -94,7 +99,7 @@ Get-ChildItem $outDir -Filter '*.exe' | ForEach-Object {
 
 Write-Host ''
 Write-Host '产物：'
-Write-Host '  dist\ShangtiPower.exe       主程序（可直接运行）'
-Write-Host '  dist\ShangtiPowerSetup.exe  安装包（发给别人用这个）'
+Write-Host '  dist\宿电监测.exe           主程序（可直接运行）'
+Write-Host '  dist\宿电监测安装包.exe     安装包（发给别人用这个）'
 Write-Host '  dist\安装说明.txt            出现 SmartScreen 提示时看这个'
 

@@ -131,10 +131,10 @@ namespace ShangtiPower
             g.SmoothingMode = SmoothingMode.AntiAlias;
             RectangleF r = new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f);
 
-            Color fill = Enabled ? Theme.Card : Color.FromArgb(28, 32, 44);
-            if (_hover && Enabled) fill = Color.FromArgb(44, 49, 66);
+            Color fill = Enabled ? Theme.Card : Color.FromArgb(244, 247, 252);
+            if (_hover && Enabled) fill = Color.FromArgb(238, 245, 255);
             Theme.FillRound(g, r, 10f, fill);
-            Theme.StrokeRound(g, r, 10f, _hover && Enabled ? Color.FromArgb(70, 120, 140, 200) : Theme.CardBorder, 1f);
+            Theme.StrokeRound(g, r, 10f, _hover && Enabled ? Color.FromArgb(185, 208, 244) : Theme.CardBorder, 1f);
 
             string text = SelectedIndex >= 0 ? SelectedText : Placeholder;
             Color color = SelectedIndex >= 0
@@ -241,7 +241,7 @@ namespace ShangtiPower
                 float y = PadY + (i - _scroll) * ItemHeight;
                 RectangleF item = new RectangleF(6, y, Width - 12, ItemHeight);
                 if (i == _hoverIndex)
-                    Theme.FillRound(g, item, 7f, Color.FromArgb(48, 54, 74));
+                    Theme.FillRound(g, item, 7f, Color.FromArgb(234, 243, 255));
                 Theme.Text(g, _texts[i], Theme.F(13f, FontStyle.Regular), Theme.TextPrimary,
                     new RectangleF(item.X + 10, item.Y, item.Width - 14, item.Height), StringAlignment.Near);
             }
@@ -253,7 +253,7 @@ namespace ShangtiPower
                 float trackH = _visible * ItemHeight;
                 float barH = Math.Max(18f, trackH * _visible / _texts.Count);
                 float barY = trackTop + (trackH - barH) * _scroll / Math.Max(1, _texts.Count - _visible);
-                Theme.FillRound(g, new RectangleF(Width - 9, barY, 5f, barH), 2.5f, Color.FromArgb(190, 150, 165, 195));
+                Theme.FillRound(g, new RectangleF(Width - 9, barY, 5f, barH), 2.5f, Color.FromArgb(170, 130, 160, 205));
             }
         }
 

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Drawing;
+using System.IO;
+using System.Reflection;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using System.Windows.Forms;
@@ -27,19 +29,69 @@ namespace ShangtiPower
             c.Visible = visible;
         }
 
-        public static readonly Color BgTop = Color.FromArgb(27, 30, 43);
-        public static readonly Color BgBottom = Color.FromArgb(13, 15, 22);
-        public static readonly Color Card = Color.FromArgb(35, 39, 54);
-        public static readonly Color CardBorder = Color.FromArgb(26, 255, 255, 255);
-        public static readonly Color TextPrimary = Color.FromArgb(240, 243, 250);
-        public static readonly Color TextSecondary = Color.FromArgb(150, 158, 178);
-        public static readonly Color TextDim = Color.FromArgb(105, 112, 132);
-        public static readonly Color Green = Color.FromArgb(52, 211, 153);
-        public static readonly Color GreenDark = Color.FromArgb(16, 138, 110);
-        public static readonly Color Blue = Color.FromArgb(96, 165, 250);
-        public static readonly Color Amber = Color.FromArgb(251, 191, 36);
-        public static readonly Color Red = Color.FromArgb(248, 113, 113);
-        public static readonly Color RedDark = Color.FromArgb(198, 48, 62);
+        public static readonly Color BgTop = Color.FromArgb(249, 251, 255);
+        public static readonly Color BgBottom = Color.FromArgb(226, 236, 253);
+        public static readonly Color Card = Color.FromArgb(255, 255, 255);
+        public static readonly Color CardBorder = Color.FromArgb(222, 232, 247);
+        public static readonly Color TextPrimary = Color.FromArgb(28, 40, 66);
+        public static readonly Color TextSecondary = Color.FromArgb(88, 105, 138);
+        public static readonly Color TextDim = Color.FromArgb(144, 158, 184);
+        public static readonly Color Green = Color.FromArgb(30, 190, 110);
+        public static readonly Color GreenDark = Color.FromArgb(18, 155, 88);
+        public static readonly Color Blue = Color.FromArgb(74, 140, 255);
+        public static readonly Color BlueDark = Color.FromArgb(43, 104, 236);
+        public static readonly Color Cyan = Color.FromArgb(96, 205, 255);
+        public static readonly Color Amber = Color.FromArgb(245, 158, 11);
+        public static readonly Color Red = Color.FromArgb(235, 76, 82);
+        public static readonly Color RedDark = Color.FromArgb(210, 46, 56);
+
+        // 次级按钮（白底浅边框）
+        public static readonly Color SecondaryTop = Color.FromArgb(255, 255, 255);
+        public static readonly Color SecondaryBottom = Color.FromArgb(238, 244, 255);
+        public static readonly Color SecondaryText = Color.FromArgb(74, 92, 124);
+
+        private static Image _logo;
+        private static bool _logoLoaded;
+
+        /// <summary>界面用的应用图标（内嵌 logo-96.png，无则返回 null）。</summary>
+        public static Image Logo
+        {
+            get
+            {
+                if (_logoLoaded) return _logo;
+                _logoLoaded = true;
+                try
+                {
+                    using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("LogoImage.png"))
+                    {
+                        if (s != null)
+                        {
+                            using (Image img = Image.FromStream(s)) _logo = new Bitmap(img);
+                        }
+                    }
+                }
+                catch { _logo = null; }
+                return _logo;
+            }
+        }
+
+        /// <summary>柔和投影（白卡片用），strength 越小越淡。</summary>
+        public static void Shadow(Graphics g, RectangleF r, float radius, int strength)
+        {
+            for (int i = 3; i >= 1; i--)
+            {
+                Color c = Color.FromArgb(Math.Max(2, strength / (i + 2)), 84, 120, 178);
+                FillRound(g, new RectangleF(r.X - i, r.Y - i + 3, r.Width + i * 2, r.Height + i * 2), radius + i, c);
+            }
+        }
+
+        /// <summary>白色卡片 + 柔和投影 + 浅边框。</summary>
+        public static void CardBox(Graphics g, RectangleF r, float radius)
+        {
+            Shadow(g, r, radius, 24);
+            FillRound(g, r, radius, Color.White);
+            StrokeRound(g, r, radius, CardBorder, 1f);
+        }
 
         private static string _fontName;
 
@@ -142,8 +194,184 @@ namespace ShangtiPower
                     g.FillPolygon(b, tri);
             }
         }
+        /// <summary>手绘齿轮（设置图标）。</summary>
+        public static void Gear(Graphics g, RectangleF r, Color color)
+        {
+            float cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f;
+            float outer = r.Width * 0.30f;
+            float inner = r.Width * 0.13f;
+            using (Pen pen = new Pen(color, Math.Max(1.6f, r.Width * 0.075f)))
+            {
+                pen.StartCap = LineCap.Round;
+                pen.EndCap = LineCap.Round;
+                g.DrawEllipse(pen, cx - outer * 0.72f, cy - outer * 0.72f, outer * 1.44f, outer * 1.44f);
+                // 8 个齿
+                for (int i = 0; i < 8; i++)
+                {
+                    double a = Math.PI * 2 * i / 8.0;
+                    float x1 = cx + (float)(Math.Cos(a) * outer * 0.98f);
+                    float y1 = cy + (float)(Math.Sin(a) * outer * 0.98f);
+                    float x2 = cx + (float)(Math.Cos(a) * outer * 1.38f);
+                    float y2 = cy + (float)(Math.Sin(a) * outer * 1.38f);
+                    g.DrawLine(pen, x1, y1, x2, y2);
+                }
+                g.DrawEllipse(pen, cx - inner, cy - inner, inner * 2, inner * 2);
+            }
+        }
+
+        /// <summary>手绘心形（打赏图标）。</summary>
+        public static void Heart(Graphics g, RectangleF r, Color color)
+        {
+            using (GraphicsPath p = new GraphicsPath())
+            {
+                float w = r.Width, h = r.Height, x = r.X, y = r.Y;
+                p.AddBezier(x + w * 0.5f, y + h * 0.30f, x + w * 0.08f, y - h * 0.12f, x - w * 0.06f, y + h * 0.52f, x + w * 0.5f, y + h);
+                p.AddBezier(x + w * 0.5f, y + h * 0.30f, x + w * 0.92f, y - h * 0.12f, x + w * 1.06f, y + h * 0.52f, x + w * 0.5f, y + h);
+                p.CloseFigure();
+                using (SolidBrush b = new SolidBrush(color)) g.FillPath(b, p);
+            }
+        }
+
+        /// <summary>手绘返回箭头（‹）。</summary>
+        public static void BackArrow(Graphics g, RectangleF r, Color color)
+        {
+            float cx = r.X + r.Width * 0.58f, cy = r.Y + r.Height * 0.5f;
+            using (Pen pen = new Pen(color, Math.Max(1.8f, r.Width * 0.13f)))
+            {
+                pen.StartCap = LineCap.Round;
+                pen.EndCap = LineCap.Round;
+                g.DrawLine(pen, cx + r.Width * 0.22f, cy - r.Height * 0.30f, cx - r.Width * 0.18f, cy);
+                g.DrawLine(pen, cx - r.Width * 0.18f, cy, cx + r.Width * 0.22f, cy + r.Height * 0.30f);
+            }
+        }
+
+        /// <summary>实心齿轮（设置图标）：8 齿 + 中间圆孔，小米风格。</summary>
+        public static void GearSolid(Graphics g, RectangleF r, Color color)
+        {
+            float cx = r.X + r.Width / 2f;
+            float cy = r.Y + r.Height / 2f;
+            float rad = Math.Min(r.Width, r.Height) / 2f;
+            float outer = rad * 0.98f;
+            float inner = rad * 0.76f;
+            float hole = rad * 0.34f;
+            int teeth = 8;
+            double step = Math.PI * 2 / teeth;
+
+            using (GraphicsPath path = new GraphicsPath(FillMode.Alternate))
+            {
+                PointF[] pts = new PointF[teeth * 4];
+                for (int i = 0; i < teeth; i++)
+                {
+                    double a0 = step * i;
+                    pts[i * 4 + 0] = Polar(cx, cy, outer, a0 - step * 0.20);
+                    pts[i * 4 + 1] = Polar(cx, cy, outer, a0 + step * 0.20);
+                    pts[i * 4 + 2] = Polar(cx, cy, inner, a0 + step * 0.28);
+                    pts[i * 4 + 3] = Polar(cx, cy, inner, a0 + step * 0.72);
+                }
+                path.AddPolygon(pts);
+                // 中间圆孔：Alternate 填充下与外形叠加形成镂空
+                path.AddEllipse(cx - hole, cy - hole, hole * 2f, hole * 2f);
+                using (SolidBrush b = new SolidBrush(color)) g.FillPath(b, path);
+            }
+        }
+
+        private static PointF Polar(float cx, float cy, float rad, double angle)
+        {
+            return new PointF(cx + (float)Math.Cos(angle) * rad, cy + (float)Math.Sin(angle) * rad);
+        }
+
+        /// <summary>打赏金币（一眼看懂）：金色圆币 + ¥ + 闪光。</summary>
+        public static void DonateCoin(Graphics g, RectangleF r, Color goldTop, Color goldBottom, Color symbol)
+        {
+            float cx = r.X + r.Width / 2f;
+            float cy = r.Y + r.Height / 2f;
+            float rad = Math.Min(r.Width, r.Height) / 2f;
+            RectangleF circle = new RectangleF(cx - rad, cy - rad, rad * 2f, rad * 2f);
+            using (LinearGradientBrush b = new LinearGradientBrush(circle, goldTop, goldBottom, LinearGradientMode.Vertical))
+                g.FillEllipse(b, circle);
+            // 内圈
+            using (Pen pen = new Pen(Color.FromArgb(150, symbol), Math.Max(1.1f, rad * 0.12f)))
+                g.DrawEllipse(pen, cx - rad * 0.78f, cy - rad * 0.78f, rad * 1.56f, rad * 1.56f);
+            // ¥ 符号
+            Theme.TextCenter(g, "¥", Theme.F(Math.Max(8f, rad * 1.02f), FontStyle.Bold), symbol,
+                new RectangleF(cx - rad, cy - rad, rad * 2f, rad * 2f));
+            // 闪光（右上 + 左下）
+            using (Pen pen = new Pen(Color.FromArgb(220, 255, 255, 255), Math.Max(1f, rad * 0.11f)))
+            {
+                pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round;
+                float sx = r.X + r.Width * 0.86f, sy = r.Y + r.Height * 0.14f;
+                g.DrawLine(pen, sx - rad * 0.16f, sy, sx + rad * 0.16f, sy);
+                g.DrawLine(pen, sx, sy - rad * 0.16f, sx, sy + rad * 0.16f);
+            }
+        }
+        /// <summary>可爱咖啡杯（打赏图标）：杯身 + 把手 + 热气 + 小心心。</summary>
+        public static void CoffeeCup(Graphics g, RectangleF r, Color cup, Color steam, Color heart)
+        {
+            float w = r.Width, h = r.Height, x = r.X, y = r.Y;
+            // 杯身（上宽下窄的圆角梯形）
+            float top = y + h * 0.40f, bottom = y + h * 0.90f;
+            PointF[] body =
+            {
+                new PointF(x + w * 0.12f, top),
+                new PointF(x + w * 0.72f, top),
+                new PointF(x + w * 0.64f, bottom),
+                new PointF(x + w * 0.20f, bottom)
+            };
+            using (GraphicsPath path = new GraphicsPath())
+            {
+                path.AddPolygon(body);
+                using (SolidBrush b = new SolidBrush(cup)) g.FillPath(b, path);
+                // 底部圆角修饰
+                using (SolidBrush b = new SolidBrush(cup)) g.FillEllipse(b, x + w * 0.18f, bottom - h * 0.08f, w * 0.48f, h * 0.16f);
+            }
+            // 把手
+            using (Pen pen = new Pen(cup, Math.Max(1.5f, w * 0.10f)))
+            {
+                pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round;
+                g.DrawArc(pen, x + w * 0.62f, top + h * 0.04f, w * 0.28f, h * 0.30f, -80f, 190f);
+            }
+            // 热气（两条小波浪）
+            using (Pen pen = new Pen(Color.FromArgb(200, steam), Math.Max(1.2f, w * 0.07f)))
+            {
+                pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round;
+                g.DrawBezier(pen,
+                    x + w * 0.30f, y + h * 0.30f,
+                    x + w * 0.22f, y + h * 0.20f,
+                    x + w * 0.40f, y + h * 0.16f,
+                    x + w * 0.32f, y + h * 0.06f);
+                g.DrawBezier(pen,
+                    x + w * 0.52f, y + h * 0.30f,
+                    x + w * 0.44f, y + h * 0.20f,
+                    x + w * 0.62f, y + h * 0.16f,
+                    x + w * 0.54f, y + h * 0.06f);
+            }
+            // 杯子中间的可爱小心心
+            Heart(g, new RectangleF(x + w * 0.28f, top + h * 0.10f, w * 0.22f, h * 0.20f), heart);
+        }
+        /// <summary>渐变心形（打赏图标），带高光。</summary>
+        public static void HeartGradient(Graphics g, RectangleF r, Color top, Color bottom)
+        {
+            using (GraphicsPath p = new GraphicsPath())
+            {
+                float w = r.Width, h = r.Height, x = r.X, y = r.Y;
+                p.AddBezier(x + w * 0.5f, y + h * 0.30f, x + w * 0.08f, y - h * 0.12f, x - w * 0.06f, y + h * 0.52f, x + w * 0.5f, y + h);
+                p.AddBezier(x + w * 0.5f, y + h * 0.30f, x + w * 0.92f, y - h * 0.12f, x + w * 1.06f, y + h * 0.52f, x + w * 0.5f, y + h);
+                p.CloseFigure();
+                using (LinearGradientBrush b = new LinearGradientBrush(
+                    new RectangleF(r.X, r.Y, r.Width, r.Height + 1f), top, bottom, LinearGradientMode.Vertical))
+                    g.FillPath(b, p);
+                // 左上高光
+                using (SolidBrush hi = new SolidBrush(Color.FromArgb(70, 255, 255, 255)))
+                    g.FillEllipse(hi, r.X + r.Width * 0.22f, r.Y + r.Height * 0.20f, r.Width * 0.22f, r.Height * 0.16f);
+            }
+        }
+
         public static void Text(Graphics g, string text, Font font, Color color, RectangleF rect, StringAlignment align)
         {
+            // 小字用 ClearType（清晰），大字用灰度抗锯齿（避免彩色描边/锯齿）
+            g.TextRenderingHint = font.Size >= 18f
+                ? System.Drawing.Text.TextRenderingHint.AntiAliasGridFit
+                : System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             using (StringFormat sf = new StringFormat())
             {
                 sf.Alignment = align;
@@ -163,16 +391,16 @@ namespace ShangtiPower
         public static Color StatusColor(double power, string unit, double low)
         {
             if (unit != "度") return Blue;
-            if (power <= low) return Red;
-            if (power <= low * 2) return Amber;
-            return Green;
+            if (power <= low) return Red;            // 低于阈值：红
+            if (power <= low * 1.25) return Amber;   // 略高于阈值：黄（只留 25% 缓冲）
+            return Blue;
         }
 
         public static string StatusText(double power, string unit, double low)
         {
             if (unit != "度") return "余额";
             if (power <= low) return "电量偏低 · 建议充值";
-            if (power <= low * 2) return "注意 · 电量不多了";
+            if (power <= low * 1.25) return "注意 · 电量不多了";
             return "电量充足";
         }
     }
@@ -182,6 +410,7 @@ namespace ShangtiPower
     {
         public Color ColorTop { get; set; }
         public Color ColorBottom { get; set; }
+        public Color BorderColor { get; set; }
         public float Radius { get; set; }
         public string Glyph { get; set; }
 
@@ -191,11 +420,14 @@ namespace ShangtiPower
         public AccentButton()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint
-                | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-            ColorTop = Theme.Green;
-            ColorBottom = Theme.GreenDark;
-            Radius = 12f;
+                | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw
+                | ControlStyles.SupportsTransparentBackColor, true);
+            ColorTop = Theme.Blue;
+            ColorBottom = Theme.Cyan;
+            BorderColor = Color.Transparent;
+            Radius = 14f;
             Cursor = Cursors.Hand;
+            BackColor = Color.Transparent;
             Font = Theme.F(14f, FontStyle.Bold);
             ForeColor = Color.White;
         }
@@ -214,8 +446,8 @@ namespace ShangtiPower
             Color bottom;
             if (!Enabled)
             {
-                top = Color.FromArgb(48, 54, 70);
-                bottom = Color.FromArgb(38, 43, 57);
+                top = Color.FromArgb(240, 244, 251);
+                bottom = Color.FromArgb(230, 237, 249);
             }
             else
             {
@@ -227,7 +459,24 @@ namespace ShangtiPower
             using (LinearGradientBrush b = new LinearGradientBrush(
                 new Rectangle(0, 0, Math.Max(1, Width), Math.Max(1, Height)), top, bottom, 90f))
                 g.FillPath(b, p);
-            if (!string.IsNullOrEmpty(Glyph) && Glyph == "refresh")
+            if (Enabled && BorderColor.A > 0)
+                using (GraphicsPath p2 = Theme.Rounded(r, Radius))
+                using (Pen pen = new Pen(BorderColor, 1f))
+                    g.DrawPath(pen, p2);
+            if (!string.IsNullOrEmpty(Glyph) && Glyph == "check")
+            {
+                float gx = 18f, gy = Height / 2f;
+                using (Pen pen = new Pen(Color.FromArgb(240, 255, 255, 255), 2.4f))
+                {
+                    pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round;
+                    g.DrawLines(pen, new PointF[] {
+                        new PointF(gx, gy),
+                        new PointF(gx + 5f, gy + 5f),
+                        new PointF(gx + 13f, gy - 6f)
+                    });
+                }
+            }
+            else if (!string.IsNullOrEmpty(Glyph) && Glyph == "refresh")
             {
                 Theme.RefreshArrow(g, new RectangleF(Width / 2f - 58, Height / 2f - 8, 16, 16), Color.FromArgb(240, 255, 255, 255), 2.2f);
             }
@@ -237,7 +486,7 @@ namespace ShangtiPower
                 Theme.TextCenter(g, Glyph, Theme.F(15f, FontStyle.Regular), Color.FromArgb(235, 255, 255, 255), glyphRect);
             }
             RectangleF tr = new RectangleF(string.IsNullOrEmpty(Glyph) ? 0 : 18, 0, Width - (string.IsNullOrEmpty(Glyph) ? 0 : 18), Height);
-            Color textColor = Enabled ? ForeColor : Color.FromArgb(140, 148, 165);
+            Color textColor = Enabled ? ForeColor : Color.FromArgb(172, 182, 200);
             Theme.TextCenter(g, Text, Font, textColor, tr);
         }
 
@@ -256,6 +505,8 @@ namespace ShangtiPower
     {
         public double Ratio { get; set; }
         public Color Accent { get; set; }
+        /// <summary>渐变终点色（A=0 时用纯色）。</summary>
+        public Color Accent2 { get; set; }
         public string ValueText { get; set; }
         public string UnitText { get; set; }
         public string Caption { get; set; }
@@ -288,7 +539,7 @@ namespace ShangtiPower
             RectangleF ring = new RectangleF((Width - size) / 2f, (Height - size) / 2f, size, size);
 
             // 背景环
-            using (Pen bg = new Pen(Color.FromArgb(46, 255, 255, 255), thick))
+            using (Pen bg = new Pen(Color.FromArgb(255, 219, 229, 245), thick))
             {
                 bg.StartCap = LineCap.Round;
                 bg.EndCap = LineCap.Round;
@@ -299,13 +550,15 @@ namespace ShangtiPower
             float sweep = (float)(270.0 * Math.Max(0.0, Math.Min(1.0, Ratio)));
             if (sweep > 0.5f)
             {
-                using (Pen glow = new Pen(Color.FromArgb(60, Accent), thick + glowExtra))
+                using (Pen glow = new Pen(Color.FromArgb(46, Accent), thick + glowExtra))
                 {
                     glow.StartCap = LineCap.Round;
                     glow.EndCap = LineCap.Round;
                     g.DrawArc(glow, ring, 135f, sweep);
                 }
-                using (Pen pen = new Pen(Accent, thick))
+                Color c2 = Accent2.A > 0 ? Accent2 : Accent;
+                using (LinearGradientBrush lb = new LinearGradientBrush(ring, Accent, c2, 45f))
+                using (Pen pen = new Pen(lb, thick))
                 {
                     pen.StartCap = LineCap.Round;
                     pen.EndCap = LineCap.Round;
@@ -386,9 +639,27 @@ namespace ShangtiPower
             }
         }
 
+        private const int WM_SETICON = 0x80;
+        private Icon _smallIcon;
+        private Icon _bigIcon;
+
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
+            try
+            {
+                Icon ico = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+                if (ico != null)
+                {
+                    Icon = ico;
+                    _smallIcon = new Icon(ico, 16, 16);
+                    _bigIcon = new Icon(ico, 32, 32);
+                    SendMessage(Handle, WM_SETICON, (IntPtr)0, _smallIcon.Handle);
+                    SendMessage(Handle, WM_SETICON, (IntPtr)1, _bigIcon.Handle);
+                    Diag.Log("任务栏图标已设置");
+                }
+            }
+            catch (Exception ex) { Diag.Log("设置窗口图标失败: " + ex.Message); }
             try
             {
                 int pref = 2; // DWMWCP_ROUND
@@ -453,26 +724,44 @@ namespace ShangtiPower
             base.OnMouseUp(e);
         }
 
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            PaintWindowFrame(e.Graphics);
+        }
+
         protected void PaintWindowFrame(Graphics g)
         {
             Theme.FillGradient(g, new Rectangle(0, 0, Width, Height), Theme.BgTop, Theme.BgBottom);
-            // 顶部柔光
             using (GraphicsPath p = Theme.Rounded(new RectangleF(0, 0, Width, Height), CornerRadius))
             {
                 g.SetClip(p);
+                // 左上蓝色柔光
                 using (GraphicsPath glow = new GraphicsPath())
                 {
-                    glow.AddEllipse(new RectangleF(-Width * 0.5f, -Height * 0.62f, Width * 2f, Height * 1.1f));
+                    glow.AddEllipse(new RectangleF(-Width * 0.55f, -Height * 0.55f, Width * 1.7f, Height * 1.05f));
                     using (PathGradientBrush b = new PathGradientBrush(glow))
                     {
-                        b.CenterColor = Color.FromArgb(28, 96, 165, 250);
+                        b.CenterColor = Color.FromArgb(34, 110, 170, 255);
                         b.SurroundColors = new Color[] { Color.Transparent };
                         g.FillPath(b, glow);
                     }
                 }
+                // 右下青色柔光
+                using (GraphicsPath glow2 = new GraphicsPath())
+                {
+                    glow2.AddEllipse(new RectangleF(Width * 0.35f, Height * 0.55f, Width * 0.9f, Height * 0.7f));
+                    using (PathGradientBrush b2 = new PathGradientBrush(glow2))
+                    {
+                        b2.CenterColor = Color.FromArgb(28, 120, 214, 255);
+                        b2.SurroundColors = new Color[] { Color.Transparent };
+                        g.FillPath(b2, glow2);
+                    }
+                }
                 g.ResetClip();
-                using (Pen border = new Pen(Color.FromArgb(30, 255, 255, 255), 1.2f))
+                using (Pen border = new Pen(Color.FromArgb(210, 255, 255, 255), 1.2f))
                     g.DrawPath(border, p);
+                using (Pen border2 = new Pen(Color.FromArgb(70, 160, 190, 228), 1f))
+                    g.DrawPath(border2, p);
             }
         }
     }
@@ -489,7 +778,9 @@ namespace ShangtiPower
         public ToggleSwitch()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint
-                | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+                | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw
+                | ControlStyles.SupportsTransparentBackColor, true);
+            BackColor = Color.Transparent;
             Size = new Size(46, 26);
             Cursor = Cursors.Hand;
         }
@@ -509,11 +800,13 @@ namespace ShangtiPower
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             RectangleF track = new RectangleF(0, (Height - 26) / 2f, Width - 1, 26);
-            Color fill = Checked ? Theme.Green : Color.FromArgb(64, 70, 88);
+            Color fill = Checked ? Theme.Blue : Color.FromArgb(198, 212, 234);
             if (_hover) fill = AccentButton.Lighten(fill, 10);
             Theme.FillRound(g, track, 13f, fill);
             float knob = 20f;
             float x = Checked ? track.Right - knob - 3f : track.X + 3f;
+            using (SolidBrush sh = new SolidBrush(Color.FromArgb(28, 60, 90, 140)))
+                g.FillEllipse(sh, x, track.Y + 4f, knob, knob);
             using (SolidBrush b = new SolidBrush(Color.White))
                 g.FillEllipse(b, x, track.Y + 3f, knob, knob);
         }

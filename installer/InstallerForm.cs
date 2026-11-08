@@ -16,7 +16,7 @@ namespace ShangtiPower.Setup
         private static extern int SetWindowTheme(IntPtr hWnd, string subAppName, string subIdList);
 
         private const string LicenseText =
-@"上体电量（ShangtiPower） v1.0.0
+@"宿电监测（SudianMonitor） v1.0.0
 
 【开源协议】MIT License
 Copyright (c) 2026 ShangtiPower contributors
@@ -61,7 +61,8 @@ Copyright (c) 2026 ShangtiPower contributors
         private ToggleSwitch _agree;
         private TextBox _dirBox;
         private ToggleSwitch _desktopToggle;
-        private ToggleSwitch _autostartToggle;
+        private ToggleSwitch _deleteToggle;
+        private bool _deleteInstaller = true;
         private ToggleSwitch _launchToggle;
         private Label _progressLabel;
         private Label _warnLabel;
@@ -76,10 +77,10 @@ Copyright (c) 2026 ShangtiPower contributors
             _defaultDir = defaultDir;
             _installDir = defaultDir;
             _desktop = desktop;
-            _autostart = autostart;
+            _autostart = false; // 安装器不再负责开机自启，改由应用内设置控制
             _launchAfter = launchAfter;
 
-            Text = "安装 上体电量";
+            Text = "安装 宿电监测";
             ClientSize = new Size(640, 600);
             CornerRadius = 20f;
             for (int i = 0; i < 4; i++) _pageControls[i] = new List<Control>();
@@ -107,13 +108,12 @@ Copyright (c) 2026 ShangtiPower contributors
             _license = new RichTextBox();
             _license.ReadOnly = true;
             _license.BorderStyle = BorderStyle.None;
-            _license.BackColor = Color.FromArgb(24, 27, 38);
+            _license.BackColor = Theme.Card;
             _license.ForeColor = Theme.TextSecondary;
             _license.Font = Theme.F(11.5f, FontStyle.Regular);
             _license.ScrollBars = RichTextBoxScrollBars.Vertical;
             _license.SetBounds(40, 108, 560, 300);
-            _license.Text = LicenseText;
-            try { SetWindowTheme(_license.Handle, "DarkMode_Explorer", null); } catch { }
+            _license.Text = LicenseText.Replace("v1.0.0", "v" + InstallerProgram.AppVersion);
             Register(Page.License, _license);
 
             _agree = new ToggleSwitch();
@@ -139,9 +139,10 @@ Copyright (c) 2026 ShangtiPower contributors
 
             AccentButton browse = new AccentButton();
             browse.Text = "浏览…";
-            browse.ColorTop = Color.FromArgb(58, 64, 84);
-            browse.ColorBottom = Color.FromArgb(42, 47, 63);
-            browse.ForeColor = Theme.TextSecondary;
+            browse.ColorTop = Theme.SecondaryTop;
+            browse.ColorBottom = Theme.SecondaryBottom;
+            browse.ForeColor = Theme.SecondaryText;
+            browse.BorderColor = Theme.CardBorder;
             browse.Font = Theme.F(12.5f, FontStyle.Bold);
             browse.SetBounds(482, 166, 118, 36);
             browse.Click += delegate { BrowseFolder(); };
@@ -156,11 +157,11 @@ Copyright (c) 2026 ShangtiPower contributors
             _desktopToggle.CheckedChanged += delegate { _desktop = _desktopToggle.Checked; };
             Register(Page.Options, _desktopToggle);
 
-            _autostartToggle = new ToggleSwitch();
-            _autostartToggle.Checked = _autostart;
-            _autostartToggle.SetBounds(40, 256, 46, 26);
-            _autostartToggle.CheckedChanged += delegate { _autostart = _autostartToggle.Checked; };
-            Register(Page.Options, _autostartToggle);
+            _deleteToggle = new ToggleSwitch();
+            _deleteToggle.Checked = _deleteInstaller;
+            _deleteToggle.SetBounds(40, 256, 46, 26);
+            _deleteToggle.CheckedChanged += delegate { _deleteInstaller = _deleteToggle.Checked; };
+            Register(Page.Options, _deleteToggle);
         }
 
         private void BuildProgressPage()
@@ -173,11 +174,7 @@ Copyright (c) 2026 ShangtiPower contributors
             _progressLabel.SetBounds(40, 180, 560, 26);
             Register(Page.Progress, _progressLabel);
 
-            _launchToggle = new ToggleSwitch();
-            _launchToggle.Checked = _launchAfter;
-            _launchToggle.SetBounds(40, 300, 46, 26);
-            _launchToggle.CheckedChanged += delegate { _launchAfter = _launchToggle.Checked; };
-            Register(Page.Progress, _launchToggle);
+
 
             _warnLabel = new Label();
             _warnLabel.BackColor = Color.Transparent;
@@ -192,9 +189,10 @@ Copyright (c) 2026 ShangtiPower contributors
         {
             _btnBack = new AccentButton();
             _btnBack.Text = "上一步";
-            _btnBack.ColorTop = Color.FromArgb(58, 64, 84);
-            _btnBack.ColorBottom = Color.FromArgb(42, 47, 63);
-            _btnBack.ForeColor = Theme.TextSecondary;
+            _btnBack.ColorTop = Theme.SecondaryTop;
+            _btnBack.ColorBottom = Theme.SecondaryBottom;
+            _btnBack.ForeColor = Theme.SecondaryText;
+            _btnBack.BorderColor = Theme.CardBorder;
             _btnBack.Font = Theme.F(13f, FontStyle.Bold);
             _btnBack.SetBounds(40, 524, 130, 46);
             _btnBack.Click += delegate { GoBack(); };
@@ -314,6 +312,10 @@ Copyright (c) 2026 ShangtiPower contributors
             _installing = false;
             _installed = true;
             _installDir = engine.TargetDir;
+            _btnNext.Text = "完成";
+            _btnNext.Glyph = "check";
+            _btnNext.Visible = true;
+            _btnNext.Enabled = true;
             _progressLabel.ForeColor = Theme.Green;
             _progressLabel.Text = "安装完成 ✓";
             if (engine.Warnings.Count > 0)
@@ -325,11 +327,39 @@ Copyright (c) 2026 ShangtiPower contributors
             Invalidate();
         }
 
+        /// <summary>仅用于截图/预览「安装完成」状态。</summary>
+        public void PreviewFinished(string dir)
+        {
+            _installing = false;
+            _installed = true;
+            _installDir = dir;
+            ShowPage(Page.Progress);
+            _progressLabel.ForeColor = Theme.Green;
+            _progressLabel.Text = "安装完成 ✓";
+            _btnNext.Text = "完成";
+            _btnNext.Glyph = "check";
+            _btnNext.Visible = true;
+            _btnNext.Enabled = true;
+            Invalidate();
+        }
+
         private void Finish()
         {
-            if (_launchAfter)
+
+            // 删除安装包（可选）：延迟到本进程退出后再删，避免文件被占用
+            if (_deleteInstaller)
             {
-                try { Process.Start(Path.Combine(_installDir, InstallerProgram.AppExeName)); } catch { }
+                try
+                {
+                    string self = Application.ExecutablePath;
+                    string cmd = "/c ping -n 3 127.0.0.1 >nul & del /f /q \"" + self + "\"";
+                    Process.Start(new ProcessStartInfo("cmd.exe", cmd)
+                    {
+                        WindowStyle = ProcessWindowStyle.Hidden,
+                        CreateNoWindow = true
+                    });
+                }
+                catch { }
             }
             Close();
         }
@@ -349,15 +379,13 @@ Copyright (c) 2026 ShangtiPower contributors
         {
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            PaintWindowFrame(g);
-
-            string title = "安装 上体电量";
+            string title = "安装 宿电监测";
             string subtitle = "一个查宿舍剩余电量的小工具 · v" + InstallerProgram.AppVersion;
             switch (_page)
             {
                 case Page.License: title = "许可协议"; subtitle = "请阅读并同意以下协议后继续"; break;
                 case Page.Folder: title = "选择安装位置"; subtitle = "程序约 0.1 MB，默认装到当前用户目录，无需管理员权限"; break;
-                case Page.Options: title = "安装选项"; subtitle = "选择你需要的快捷方式与自启方式"; break;
+                case Page.Options: title = "安装选项"; subtitle = "选择你需要的快捷方式与安装包清理方式"; break;
                 case Page.Progress: title = _installed ? "安装完成" : "正在安装"; subtitle = _installed ? "感谢使用，欢迎到项目主页提建议" : "请稍候…"; break;
             }
             Theme.Text(g, title, Theme.F(19f, FontStyle.Bold), Theme.TextPrimary,
@@ -388,9 +416,9 @@ Copyright (c) 2026 ShangtiPower contributors
                     new RectangleF(96, 168, 400, 26), StringAlignment.Near);
                 Theme.Text(g, "在桌面放一个图标，双击就能查电量", Theme.F(10.5f, FontStyle.Regular), Theme.TextDim,
                     new RectangleF(96, 188, 460, 18), StringAlignment.Near);
-                Theme.Text(g, "开机自动运行", Theme.F(12.5f, FontStyle.Bold), Theme.TextPrimary,
+                Theme.Text(g, "安装完成后删除安装包", Theme.F(12.5f, FontStyle.Bold), Theme.TextPrimary,
                     new RectangleF(96, 256, 400, 26), StringAlignment.Near);
-                Theme.Text(g, "开机登录后自动查一次并弹窗（可在程序设置里关掉）", Theme.F(10.5f, FontStyle.Regular),
+                Theme.Text(g, "安装成功后自动删除下载的安装包文件，不占空间", Theme.F(10.5f, FontStyle.Regular),
                     Theme.TextDim, new RectangleF(96, 276, 500, 18), StringAlignment.Near);
             }
 
@@ -398,15 +426,17 @@ Copyright (c) 2026 ShangtiPower contributors
             {
                 Theme.Text(g, "安装目录：" + _installDir, Theme.F(11f, FontStyle.Regular), Theme.TextDim,
                     new RectangleF(40, 214, 560, 20), StringAlignment.Near);
-                Theme.Text(g, "安装完成后可自动启动", Theme.F(12.5f, FontStyle.Bold), Theme.TextPrimary,
-                    new RectangleF(96, 300, 400, 26), StringAlignment.Near);
+                Theme.TextCenter(g, "点右下角「完成」即可退出安装程序",
+                    Theme.F(11f, FontStyle.Regular), Theme.TextSecondary,
+                    new RectangleF(40, 452, 560, 22));
+
             }
 
             // 关闭按钮
             bool hover = _closeRect.Contains(PointToClient(Cursor.Position));
             if (hover) Theme.FillRound(g, _closeRect, 8f, Color.FromArgb(200, 198, 48, 62));
             Theme.TextCenter(g, "✕", Theme.F(13f, FontStyle.Bold),
-                hover ? Color.White : Theme.TextSecondary, _closeRect);
+                hover ? Theme.RedDark : Theme.TextSecondary, _closeRect);
         }
 
         protected override void OnMouseMove(MouseEventArgs e)

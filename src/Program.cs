@@ -16,10 +16,13 @@ namespace ShangtiPower
     /// <summary>应用入口：单实例、首次配置、命令行自检、开机自启。</summary>
     static class Program
     {
-        public const string AppName = "上体电量";
-        public const string AppId = "ShangtiPower";
-        public const string Version = "1.0.3";
+        public const string AppName = "宿电监测";
+        public const string AppId = "SudianMonitor";
+        public const string Version = "1.3.6";
         public const string RepoUrl = "https://github.com/cyy-12322/shangti-power";
+
+        /// <summary>演示模式：不访问网络，用示例数据渲染界面（仅用于截图/设计评审）。</summary>
+        public static bool DemoMode;
 
         private static string _dataDir;
 
@@ -113,6 +116,8 @@ namespace ShangtiPower
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool SetProcessDPIAware();
+        [System.Runtime.InteropServices.DllImport("shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
 
         private static bool HasArg(string[] args, string name)
         {
@@ -140,11 +145,11 @@ namespace ShangtiPower
                 try
                 {
                     string dir = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
-                    if (!string.IsNullOrEmpty(dir)) return Path.Combine(dir, "上体电量.lnk");
+                    if (!string.IsNullOrEmpty(dir)) return Path.Combine(dir, "宿电监测.lnk");
                 }
                 catch { }
                 return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    @"Microsoft\Windows\Start Menu\Programs\Startup\上体电量.lnk");
+                    @"Microsoft\Windows\Start Menu\Programs\Startup\宿电监测.lnk");
             }
         }
 
@@ -155,11 +160,11 @@ namespace ShangtiPower
                 try
                 {
                     string dir = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
-                    if (!string.IsNullOrEmpty(dir)) return Path.Combine(dir, "上体电量.vbs");
+                    if (!string.IsNullOrEmpty(dir)) return Path.Combine(dir, "宿电监测.vbs");
                 }
                 catch { }
                 return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    @"Microsoft\Windows\Start Menu\Programs\Startup\上体电量.vbs");
+                    @"Microsoft\Windows\Start Menu\Programs\Startup\宿电监测.vbs");
             }
         }
 
@@ -186,7 +191,7 @@ namespace ShangtiPower
             {
                 string exe = Application.ExecutablePath;
                 string content =
-                    "' 上体电量 开机自启（由程序自动生成，可删除）" + Environment.NewLine +
+                    "' 宿电监测 开机自启（由程序自动生成，可删除）" + Environment.NewLine +
                     "CreateObject(\"WScript.Shell\").Run \"\"\"" + exe + "\"\"\", 1, False" + Environment.NewLine;
                 File.WriteAllText(StartupVbsPath, content, Encoding.UTF8);
                 bool ok = File.Exists(StartupVbsPath);
@@ -289,17 +294,17 @@ namespace ShangtiPower
                 if (!silent)
                 {
                     DialogResult r = MessageBox.Show(
-                        "确定要卸载「上体电量」吗？\n\n将删除：程序文件、桌面/开始菜单快捷方式、开机自启和本地配置。",
-                        "卸载上体电量", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                        "确定要卸载「宿电监测」吗？\n\n将删除：程序文件、桌面/开始菜单快捷方式、开机自启和本地配置。",
+                        "卸载宿电监测", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                     if (r != DialogResult.Yes) return;
                 }
 
                 SetAutoStart(false);
 
                 // 删除快捷方式
-                try { File.Delete(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "上体电量.lnk")); } catch { }
+                try { File.Delete(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "宿电监测.lnk")); } catch { }
                 string startMenu = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
-                try { File.Delete(Path.Combine(startMenu, "上体电量.lnk")); } catch { }
+                try { File.Delete(Path.Combine(startMenu, "宿电监测.lnk")); } catch { }
 
                 // 删除卸载信息
                 try
@@ -312,11 +317,22 @@ namespace ShangtiPower
                 // 删除配置
                 try { if (Directory.Exists(DataDir)) Directory.Delete(DataDir, true); } catch { }
 
+                // 删除安装日志、崩溃转储等残留
+                try { if (Directory.Exists(Path.Combine(Path.GetTempPath(), "ShangtiPowerSetup"))) Directory.Delete(Path.Combine(Path.GetTempPath(), "ShangtiPowerSetup"), true); } catch { }
+                try { string fb = Path.Combine(Path.GetTempPath(), "ShangtiPower.fallback.log"); if (File.Exists(fb)) File.Delete(fb); } catch { }
+                try
+                {
+                    string dumps = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CrashDumps");
+                    if (Directory.Exists(dumps))
+                        foreach (string f in Directory.GetFiles(dumps, "ShangtiPower*.dmp")) { try { File.Delete(f); } catch { } }
+                }
+                catch { }
+
                 string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
                 string exe = Application.ExecutablePath;
 
                 if (!silent)
-                    MessageBox.Show("已卸载。点击确定后程序将退出，并自动删除程序文件。", "上体电量",
+                    MessageBox.Show("已卸载。点击确定后程序将退出，并自动删除程序文件。", "宿电监测",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 // 延迟删除自身（程序运行中无法删自己）
@@ -339,6 +355,8 @@ namespace ShangtiPower
                 Log("!!! 未捕获异常: " + (ex == null ? e.ExceptionObject.ToString() : ex.ToString()));
                 Emit("UNHANDLED: " + (ex == null ? "?" : ex.GetType().Name + " " + ex.Message));
             };
+            if (HasArg(args, "--demo")) DemoMode = true;
+            try { SetCurrentProcessExplicitAppUserModelID("ShangtiPower.Desktop"); } catch { }
             try { SetProcessDPIAware(); } catch { }
             Diag.Sink = delegate(string m) { Log(m); };
             ConfigureTls();
@@ -474,11 +492,24 @@ namespace ShangtiPower
             }
 
             bool createdNew;
-            using (Mutex mutex = new Mutex(true, "Global\\ShangtiPower_SingleInstance", out createdNew))
+            string instanceName = "Global\\ShangtiPower_SingleInstance" + (Environment.GetEnvironmentVariable("SHANGTI_INSTANCE_SUFFIX") ?? "");
+            using (Mutex mutex = new Mutex(true, instanceName, out createdNew))
             {
-                if (!createdNew) return 0; // 已经有一个在跑，直接退出
+                if (!createdNew)
+                {
+                    // 已经有实例：给个提示，而不是静默退出（用户双击后没反应会很困惑）
+                    try
+                    {
+                        MessageBox.Show("宿电监测已经在运行了。\n如果任务栏里看不到窗口，请到任务管理器结束 宿电监测.exe 后再试。",
+                            "宿电监测", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch { }
+                    return 0;
+                }
 
-                try { SetProcessDPIAware(); } catch { }
+                if (HasArg(args, "--demo")) DemoMode = true;
+            try { SetCurrentProcessExplicitAppUserModelID("ShangtiPower.Desktop"); } catch { }
+            try { SetProcessDPIAware(); } catch { }
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 // 任何未处理的 UI 异常都记录 + 提示，避免「闪退」
@@ -489,7 +520,7 @@ namespace ShangtiPower
                     try
                     {
                         MessageBox.Show("程序遇到一个问题：\n" + (e.Exception == null ? "未知错误" : e.Exception.Message) +
-                            "\n\n详细信息已记录到日志。", "上体电量",
+                            "\n\n详细信息已记录到日志。", "宿电监测",
                             MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                     catch { }

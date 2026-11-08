@@ -13,10 +13,10 @@ namespace ShangtiPower.Setup
     /// <summary>安装程序入口：支持 /S 静默安装（用于自动化测试）。</summary>
     static class InstallerProgram
     {
-        public const string AppName = "上体电量";
-        public const string AppId = "ShangtiPower";
-        public const string AppVersion = "1.0.0";
-        public const string AppExeName = "ShangtiPower.exe";
+        public const string AppName = "宿电监测";
+        public const string AppId = "SudianMonitor";
+        public const string AppVersion = "1.3.6";
+        public const string AppExeName = "宿电监测.exe";
 
         public static string LogPath
         {
@@ -101,6 +101,7 @@ namespace ShangtiPower.Setup
             if (!string.IsNullOrEmpty(pv)) int.TryParse(pv, out previewPage);
             using (InstallerForm f = new InstallerForm(dir, desktop, autostart, !noRun, previewPage))
             {
+                if (ArgValue(args, "--preview-done") == "1") f.PreviewFinished(dir);
                 Application.Run(f);
             }
             return 0;
@@ -169,21 +170,21 @@ namespace ShangtiPower.Setup
 
             Report(progress, "创建开始菜单快捷方式…");
             string startMenu = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
-            CreateShortcut(Path.Combine(startMenu, "上体电量.lnk"), "上体电量");
+            CreateShortcut(Path.Combine(startMenu, "宿电监测.lnk"), "宿电监测");
 
             if (CreateDesktopShortcut)
             {
                 Report(progress, "创建桌面快捷方式…");
                 string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                CreateShortcut(Path.Combine(desktop, "上体电量.lnk"), "上体电量（桌面）");
+                CreateShortcut(Path.Combine(desktop, "宿电监测.lnk"), "宿电监测（桌面）");
             }
 
             Report(progress, "配置开机自启…");
             string startup = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
-            string startupLnk = Path.Combine(startup, "上体电量.lnk");
+            string startupLnk = Path.Combine(startup, "宿电监测.lnk");
             if (EnableAutoStart)
             {
-                CreateShortcut(startupLnk, "上体电量（开机自启）");
+                CreateShortcut(startupLnk, "宿电监测（开机自启）");
             }
             else
             {
@@ -207,7 +208,7 @@ namespace ShangtiPower.Setup
         private void ExtractApp()
         {
             Assembly asm = Assembly.GetExecutingAssembly();
-            string resourceName = "ShangtiPowerApp.exe";
+            string resourceName = "SudiApp.exe";
             using (Stream s = asm.GetManifestResourceStream(resourceName))
             {
                 if (s == null)

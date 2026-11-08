@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("上体电量 (ShangtiPower)")]
+[assembly: AssemblyTitle("宿电监测 (ShangtiPower)")]
 [assembly: AssemblyDescription("上海体育大学宿舍剩余电量查询工具")]
 [assembly: AssemblyCompany("ShangtiPower contributors")]
 [assembly: AssemblyProduct("ShangtiPower")]
@@ -9,5 +9,5 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.0.3.0")]
-[assembly: AssemblyFileVersion("1.0.3.0")]
+[assembly: AssemblyVersion("1.3.6.0")]
+[assembly: AssemblyFileVersion("1.3.6.0")]

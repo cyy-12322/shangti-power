@@ -1,4 +1,4 @@
-# ShangtiPower · 上体电量
+# SudianMonitor · 上体电量
 
 [简体中文](README.md) | English
 
@@ -26,15 +26,15 @@ first-run setup and remembered afterwards. Optional auto-start at login.
 
 ## Install
 
-1. Download `ShangtiPowerSetup.exe` from Releases
+1. Download `SudianMonitor-Setup.exe` from Releases
 2. Run it: agree to the license (MIT + disclaimer), pick a folder, choose desktop shortcut /
    auto-start, install
 3. First launch: pick your campus → building → floor → room
 4. Done — every launch shows your balance; click ✕ to quit
 
-Portable mode: run `ShangtiPower.exe` directly, no installation.
+Portable mode: run `宿电监测.exe` directly, no installation.
 
-Uninstall: Windows Settings → Apps → 上体电量 → Uninstall, or `ShangtiPower.exe --uninstall`.
+Uninstall: Windows Settings → Apps → 上体电量 → Uninstall, or `宿电监测.exe --uninstall`.
 
 > The UI is currently in Chinese (the target users are Chinese students). PRs for i18n are welcome.
 
@@ -53,8 +53,8 @@ Requirements: Windows + .NET Framework 4.8 (preinstalled on Windows 10/11).
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build\build.ps1
-# dist\ShangtiPower.exe       main app
-# dist\ShangtiPowerSetup.exe  installer (embeds the app)
+# dist\宿电监测.exe       main app
+# dist\SudianMonitor-Setup.exe  installer (embeds the app)
 ```
 
 ## Code signing

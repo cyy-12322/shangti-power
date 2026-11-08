@@ -42,3 +42,22 @@ build/ci-*.log
 build/capture*.ps1
 build/repro*.ps1
 build/ui-data/
+
+# 本地开发脚本（含示例房间数据，不入库）
+build/demo-shot.ps1
+build/anim-test.ps1
+build/icon-*.py
+build/*.ps1
+!build/build.ps1
+!build/sign.ps1
+!build/shot.ps1
+# 本地测试残留
+build/install-new/
+build/sm-test/
+build/sm2/
+build/thtest/
+build/zipstage/
+build/ui-data/
+build/testdata/
+build/*.exe
+build/*.dll
