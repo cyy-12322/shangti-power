@@ -25,6 +25,7 @@ namespace ShangtiPower
 
         private ArcGauge _gauge;
         private AccentButton _btnRefresh;
+        private AccentButton _btnPay;
 
         private AccentButton _btnRepick;
         private DarkDropdown _threshold;
@@ -84,15 +85,25 @@ namespace ShangtiPower
             _gauge.SetBounds(72, 76, 276, 276);
             Controls.Add(_gauge);
 
-            // 刷新电量：主操作，底部通栏
+            // 底部双按钮：刷新（主）+ 去缴费（次）
             _btnRefresh = new AccentButton();
             _btnRefresh.Text = "刷新电量";
             _btnRefresh.Glyph = "refresh";
-            _btnRefresh.Radius = 26f;
-            _btnRefresh.Radius = 26f;
-            _btnRefresh.SetBounds(110, 502, 200, 52);
+            _btnRefresh.Radius = 25f;
+            _btnRefresh.Font = Theme.F(13f, FontStyle.Bold);
+            _btnRefresh.SetBounds(20, 502, 186, 50);
             _btnRefresh.Click += delegate { RefreshPower(); };
             Controls.Add(_btnRefresh);
+
+            _btnPay = new AccentButton();
+            _btnPay.Text = "去缴费";
+            _btnPay.Glyph = "pay";
+            _btnPay.Radius = 25f;
+            _btnPay.Font = Theme.F(13f, FontStyle.Bold);
+            _btnPay.SetBounds(214, 502, 186, 50);
+            _btnPay.Click += delegate { OpenPayPage(); };
+            Controls.Add(_btnPay);
+            ApplyPayStyle();
         }
 
         // ------------------------------------------------------------ 设置页控件
@@ -168,6 +179,7 @@ namespace ShangtiPower
             bool main = page == PageMain;
             Theme.SetVisible(_gauge, main);
             Theme.SetVisible(_btnRefresh, main);
+            Theme.SetVisible(_btnPay, main);
             Theme.SetVisible(_btnRepick, !main);
             Theme.SetVisible(_threshold, !main);
             Theme.SetVisible(_autoStart, !main);
@@ -180,6 +192,52 @@ namespace ShangtiPower
         {
             _threshold.SelectByTag(_cfg.LowThreshold);
             _autoStart.Checked = _cfg.AutoStart;
+        }
+
+        // ------------------------------------------------------------ 缴费入口
+        private void ApplyPayStyle()
+        {
+            if (_btnPay == null) return;
+            bool low = _result != null && _error == null
+                && _result.Power <= _cfg.LowThreshold;
+            if (low)
+            {
+                _btnPay.ColorTop = Color.FromArgb(255, 255, 248, 232);
+                _btnPay.ColorBottom = Color.FromArgb(255, 255, 236, 200);
+                _btnPay.BorderColor = Color.FromArgb(210, 176, 110);
+                _btnPay.ForeColor = Color.FromArgb(190, 118, 12);
+            }
+            else
+            {
+                _btnPay.ColorTop = Color.FromArgb(255, 255, 255, 255);
+                _btnPay.ColorBottom = Color.FromArgb(255, 243, 248, 255);
+                _btnPay.BorderColor = Color.FromArgb(198, 214, 240);
+                _btnPay.ForeColor = Theme.BlueDark;
+            }
+            _btnPay.Invalidate();
+        }
+
+        private void OpenPayPage()
+        {
+            try
+            {
+                if (_cfg != null && !_cfg.PayHintShown)
+                {
+                    string tip = "接下来会打开浏览器，进入学校官方的「校园安心付」缴费页面。\n\n"
+                        + "· 在页面里选择你的校区 / 楼栋 / 楼层 / 房间，填上姓名即可缴费\n"
+                        + "· 本软件只负责打开这个官方页面，不参与支付，也不会保存你的姓名或支付信息";
+                    MessageBox.Show(this, tip, "去缴费", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    _cfg.PayHintShown = true;
+                    try { _cfg.Save(); } catch { }
+                }
+                Process.Start(new ProcessStartInfo(Program.PayUrl) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                Program.Log("打开缴费页失败: " + ex.Message);
+                MessageBox.Show(this, "打开浏览器失败，你可以手动访问：\n" + Program.PayUrl,
+                    "去缴费", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private void Repick()
@@ -224,6 +282,7 @@ namespace ShangtiPower
                 _gauge.Accent2 = AccentButton.Lighten(_gauge.Accent, 45);
                 _gauge.ValueText = demo.Power.ToString("0.00");
                 _gauge.UnitText = demo.Unit;
+                ApplyPayStyle();
                 Invalidate();
                 return;
             }
@@ -251,6 +310,7 @@ namespace ShangtiPower
                         _gauge.ValueText = r.Power.ToString("0.00");
                         _gauge.UnitText = r.Unit;
                         _gauge.Caption = null;
+                        ApplyPayStyle();
                         Program.Log("查询成功: " + r.Power + " " + r.Unit + " (阈值 " + _cfg.LowThreshold + " 度)");
                         Invalidate();
                     });
@@ -261,6 +321,7 @@ namespace ShangtiPower
                     {
                         _loading = false;
                         _error = FriendlyError(ex);
+                        ApplyPayStyle();
                         _btnRefresh.Text = "重试";
                         _btnRefresh.Enabled = true;
                         Program.Log("查询失败: " + ex.Message);

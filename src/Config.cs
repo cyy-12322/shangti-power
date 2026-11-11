@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -21,6 +21,7 @@ namespace ShangtiPower
         public string DisplayName { get; set; }
         public double LowThreshold { get; set; }
         public bool AutoStart { get; set; }
+        public bool PayHintShown { get; set; }
 
         public AppConfig()
         {

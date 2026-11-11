@@ -476,6 +476,15 @@ namespace ShangtiPower
                     });
                 }
             }
+            else if (!string.IsNullOrEmpty(Glyph) && Glyph == "pay")
+            {
+                using (Font f = Theme.F(16f, FontStyle.Bold))
+                using (SolidBrush br = new SolidBrush(Enabled ? ForeColor : Color.FromArgb(172, 182, 200)))
+                {
+                    SizeF sz = g.MeasureString("¥", f);
+                    g.DrawString("¥", f, br, new PointF(Width / 2f - 48f - sz.Width / 2f, (Height - sz.Height) / 2f));
+                }
+            }
             else if (!string.IsNullOrEmpty(Glyph) && Glyph == "refresh")
             {
                 Theme.RefreshArrow(g, new RectangleF(Width / 2f - 58, Height / 2f - 8, 16, 16), Color.FromArgb(240, 255, 255, 255), 2.2f);
