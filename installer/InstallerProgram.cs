@@ -15,7 +15,7 @@ namespace ShangtiPower.Setup
     {
         public const string AppName = "宿电监测";
         public const string AppId = "SudianMonitor";
-        public const string AppVersion = "1.5.1";
+        public const string AppVersion = "1.6.0";
         public const string AppExeName = "宿电监测.exe";
 
         public static string LogPath

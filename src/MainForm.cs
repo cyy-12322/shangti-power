@@ -254,41 +254,16 @@ namespace ShangtiPower
         {
             try
             {
-                // 没填姓名时先引导填写（缴费页需要姓名才能匹配账户）
                 if (_cfg == null || string.IsNullOrEmpty(_cfg.PayName))
                 {
                     DialogResult r = MessageBox.Show(this,
-                        "要自动带入你的姓名 / 房间信息，需要先填写一次「缴费信息」。\n\n" +
-                        "现在就填写吗？（只保存在本机并加密，不参与支付）",
+                        "缴费时可以带上你保存的姓名，省得手动输入。\n\n" +
+                        "现在填写「缴费信息」吗？（只保存在本机并加密，不参与支付）",
                         "去缴费", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                     if (r == DialogResult.Cancel) return;
-                    if (r == DialogResult.Yes)
-                    {
-                        OpenPayInfo();
-                        if (string.IsNullOrEmpty(_cfg.PayName)) return;
-                    }
-                    else
-                    {
-                        Process.Start(new ProcessStartInfo(Program.PayUrl) { UseShellExecute = true });
-                        return;
-                    }
+                    if (r == DialogResult.Yes) OpenPayInfo();
                 }
-
-                // 生成一个本地表单页：自动以 POST 提交到学校官方缴费页，带入姓名 + 房间
-                string html = Program.BuildPayFormHtml(_cfg);
-                string file = Path.Combine(Path.GetTempPath(),
-                    "SudianMonitor_pay_" + Guid.NewGuid().ToString("N") + ".html");
-                File.WriteAllText(file, html, Encoding.UTF8);
-                Process.Start(file);
-                // 10 秒后删除这个临时页面（里面只含你的姓名/学号/房间）
-                try
-                {
-                    Process.Start(new ProcessStartInfo("cmd.exe",
-                        "/c ping -n 12 127.0.0.1 >nul & del /f /q \"" + file + "\"")
-                    { WindowStyle = ProcessWindowStyle.Hidden, CreateNoWindow = true });
-                }
-                catch { }
-                Program.Log("已打开缴费页（自动带入缴费信息）");
+                OpenOfficialPayPage();
             }
             catch (Exception ex)
             {
@@ -298,6 +273,23 @@ namespace ShangtiPower
             }
         }
 
+        /// <summary>
+        /// 打开学校官方缴费页（正常登录流程，不自动提交），
+        /// 同时把姓名复制到剪贴板并展示填写指引。
+        /// </summary>
+        private void OpenOfficialPayPage()
+        {
+            Process.Start(new ProcessStartInfo(Program.PayUrl) { UseShellExecute = true });
+            try
+            {
+                if (_cfg != null && !string.IsNullOrEmpty(_cfg.PayName))
+                    Clipboard.SetText(_cfg.PayName);
+            }
+            catch { }
+            using (PaymentGuideForm guide = new PaymentGuideForm(_cfg))
+                guide.ShowDialog(this);
+            Program.Log("已打开官方缴费页（手动填写模式）");
+        }
         private void Repick()
         {
             using (SetupForm f = new SetupForm(_cfg))

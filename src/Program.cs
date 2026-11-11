@@ -18,44 +18,67 @@ namespace ShangtiPower
     {
         public const string AppName = "宿电监测";
         public const string AppId = "SudianMonitor";
-        public const string Version = "1.5.1";
+        public const string Version = "1.6.0";
         public const string RepoUrl = "https://github.com/cyy-12322/shangti-power";
         /// <summary>学校官方缴费入口（校园安心付）。</summary>
         public const string PayUrl = "https://axinfu.sus.edu.cn:8082/electric/page/login";
-        /// <summary>官方缴费表单提交地址（浏览器直接 POST 进入缴费页）。</summary>
-        public const string PaySubmitUrl = "https://axinfu.sus.edu.cn:8082/electric/page/home";
+
 
         private static readonly byte[] PayEntropy = Encoding.UTF8.GetBytes("SudianMonitor.PayInfo.v1");
 
-        /// <summary>生成一个本地 HTML：打开后用 POST 表单直接进入学校缴费页，带入姓名与房间。</summary>
-        public static string BuildPayFormHtml(AppConfig cfg)
+        private static EventWaitHandle _showEvent;
+
+        private static void StartShowListener(string eventName)
         {
-            StringBuilder h = new StringBuilder();
-            h.Append("<!DOCTYPE html><html><head><meta charset=\"utf-8\">");
-            h.Append("<title>正在打开校园安心付…</title>");
-            h.Append("<style>body{font-family:'Microsoft YaHei',sans-serif;color:#5b6b8c;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f6f9ff}</style>");
-            h.Append("</head><body onload=\"document.forms[0].submit()\">");
-            h.Append("<div>正在打开学校缴费页面，请稍候…</div>");
-            h.Append("<form method=\"post\" action=\"" + PaySubmitUrl + "\">");
-            AppendHidden(h, "areaId", cfg.CampusId);
-            AppendHidden(h, "areaName", cfg.CampusName);
-            AppendHidden(h, "architectureId", cfg.BuildingId);
-            AppendHidden(h, "architectureName", cfg.BuildingName);
-            AppendHidden(h, "floor", cfg.FloorId);
-            AppendHidden(h, "floorName", cfg.FloorName);
-            AppendHidden(h, "roomId", cfg.RoomId);
-            AppendHidden(h, "roomName", cfg.RoomName);
-            AppendHidden(h, "custName", cfg.PayName);
-            AppendHidden(h, "custNo", cfg.PayStudentNo);
-            h.Append("</form></body></html>");
-            return h.ToString();
+            try
+            {
+                _showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, eventName);
+                System.Threading.Thread t = new System.Threading.Thread(delegate()
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            _showEvent.WaitOne();
+                            ActivateExistingWindow();
+                        }
+                        catch { }
+                    }
+                });
+                t.IsBackground = true;
+                t.Name = "show-listener";
+                t.Start();
+            }
+            catch (Exception ex) { Log("启动唤醒监听失败: " + ex.Message); }
         }
 
-        private static void AppendHidden(StringBuilder h, string name, string value)
+        private static void ActivateExistingWindow()
         {
-            h.Append("<input type=\"hidden\" name=\"" + name + "\" value=\""
-                + System.Web.HttpUtility.HtmlEncode(string.IsNullOrEmpty(value) ? "" : value.Trim()) + "\">");
+            try
+            {
+                Form f = null;
+                try { if (Application.OpenForms.Count > 0) f = Application.OpenForms[0]; }
+                catch { }
+                if (f == null || !f.IsHandleCreated) return;
+                f.Invoke((MethodInvoker)delegate
+                {
+                    try
+                    {
+                        if (f.WindowState == FormWindowState.Minimized) f.WindowState = FormWindowState.Normal;
+                        f.Show();
+                        f.Activate();
+                        SetForegroundWindow(f.Handle);
+                        f.BringToFront();
+                        f.Invalidate(true);
+                    }
+                    catch { }
+                });
+            }
+            catch { }
         }
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
         public static string ProtectText(string plain)
         {
             if (string.IsNullOrEmpty(plain)) return "";
@@ -447,6 +470,23 @@ namespace ShangtiPower
             Emit("ROUNDTRIP " + (ok ? "OK" : "FAIL"));
             return ok ? 0 : 1;
         }
+        if (HasArg(args, "--preview-payguide"))
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            AppConfig pc = AppConfig.Load();
+            if (pc == null)
+            {
+                pc = new AppConfig();
+                pc.CampusId = "1"; pc.CampusName = "示例校区";
+                pc.BuildingId = "1"; pc.BuildingName = "01号楼";
+                pc.FloorId = "2-1"; pc.FloorName = "2-1楼";
+                pc.RoomId = "101"; pc.RoomName = "2-101";
+            }
+            pc.PayName = string.IsNullOrEmpty(pc.PayName) ? "张三" : pc.PayName;
+            Application.Run(new PaymentGuideForm(pc));
+            return 0;
+        }
         if (HasArg(args, "--preview-payinfo"))
         {
             Application.EnableVisualStyles();
@@ -457,24 +497,6 @@ namespace ShangtiPower
             return 0;
         }
 
-        if (HasArg(args, "--dump-payform"))
-        {
-            string path = ArgValue(args, "--dump-payform");
-            AppConfig payCfg = AppConfig.Load();
-            if (payCfg == null)
-            {
-                payCfg = new AppConfig();
-                payCfg.CampusId = "1"; payCfg.CampusName = "示例校区";
-                payCfg.BuildingId = "1"; payCfg.BuildingName = "01号楼";
-                payCfg.FloorId = "2-1"; payCfg.FloorName = "2-1楼";
-                payCfg.RoomId = "101"; payCfg.RoomName = "2-101";
-            }
-            payCfg.PayName = string.IsNullOrEmpty(payCfg.PayName) ? "张三" : payCfg.PayName;
-            payCfg.PayStudentNo = string.IsNullOrEmpty(payCfg.PayStudentNo) ? "20230001" : payCfg.PayStudentNo;
-            File.WriteAllText(path, BuildPayFormHtml(payCfg), Encoding.UTF8);
-            Emit("PAYFORM -> " + path);
-            return 0;
-        }
         if (HasArg(args, "--preview-setup"))
             {
                 Application.EnableVisualStyles();
@@ -597,16 +619,18 @@ namespace ShangtiPower
             }
 
             bool createdNew;
-            string instanceName = "Global\\ShangtiPower_SingleInstance" + (Environment.GetEnvironmentVariable("SHANGTI_INSTANCE_SUFFIX") ?? "");
+            string suffix = Environment.GetEnvironmentVariable("SHANGTI_INSTANCE_SUFFIX") ?? "";
+            string instanceName = "Global\\ShangtiPower_SingleInstance" + suffix;
+            string showEventName = "Global\\ShangtiPower_ShowWindow" + suffix;
             using (Mutex mutex = new Mutex(true, instanceName, out createdNew))
             {
                 if (!createdNew)
                 {
-                    // 已经有实例：给个提示，而不是静默退出（用户双击后没反应会很困惑）
+                    // 已有实例在运行：通知它把窗口显示到前台，然后安静退出
                     try
                     {
-                        MessageBox.Show("宿电监测已经在运行了。\n如果任务栏里看不到窗口，请到任务管理器结束 宿电监测.exe 后再试。",
-                            "宿电监测", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        using (EventWaitHandle ev = EventWaitHandle.OpenExisting(showEventName))
+                            ev.Set();
                     }
                     catch { }
                     return 0;
@@ -646,6 +670,7 @@ namespace ShangtiPower
                     Log("未捕获异常: " + (e.ExceptionObject == null ? "?" : e.ExceptionObject.ToString()));
                 };
 
+                StartShowListener(showEventName);
                 Application.Run(new MainForm(cfg));
             }
             return 0;
