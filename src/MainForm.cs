@@ -151,7 +151,9 @@ namespace ShangtiPower
 
             _btnSave = new AccentButton();
             _btnSave.Text = "保存";
-            _btnSave.SetBounds(24, 506, 372, 46);
+            _btnSave.SetBounds(296, 366, 84, 36);
+            _btnSave.Radius = 18f;
+            _btnSave.Font = Theme.F(12.5f, FontStyle.Bold);
             _btnSave.Click += delegate { SaveSettings(); };
             Controls.Add(_btnSave);
         }
@@ -646,7 +648,7 @@ namespace ShangtiPower
                 new RectangleF(40, 124, 340, 24), StringAlignment.Near);
 
             // 卡片二：阈值 + 自启
-            RectangleF card2 = new RectangleF(20, 226, ClientSize.Width - 40, 176);
+            RectangleF card2 = new RectangleF(20, 226, ClientSize.Width - 40, 196);
             Theme.CardBox(g, card2, 22f);
             Theme.Text(g, "低电量提醒阈值", Theme.F(11f, FontStyle.Bold), Theme.TextDim,
                 new RectangleF(40, 242, 220, 18), StringAlignment.Near);
