@@ -73,3 +73,8 @@ build/shot-payinfo.ps1
 build/*.html
 build/c*.txt
 build/levels.json
+
+build/pc.txt
+build/wm_*.html
+build/water.html
+build/home2.html
