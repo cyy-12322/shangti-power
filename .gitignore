@@ -61,3 +61,7 @@ build/ui-data/
 build/testdata/
 build/*.exe
 build/*.dll
+# 探查抓包
+build/axf-*
+build/home-probe.html
+build/levels.json
