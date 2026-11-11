@@ -65,3 +65,11 @@ build/*.dll
 build/axf-*
 build/home-probe.html
 build/levels.json
+
+build/paytest/
+build/shot-payinfo.ps1
+
+# 接口抓包产物
+build/*.html
+build/c*.txt
+build/levels.json

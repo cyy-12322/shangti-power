@@ -38,6 +38,7 @@ function Compile($outName, $sources, $extraArgs) {
     '/r:System.Windows.Forms.dll',
     '/r:System.Drawing.dll',
     '/r:System.Web.Extensions.dll',
+        '/r:System.Security.dll',
     '/platform:anycpu'
   )
   if (-not $DebugBuild) { $cscArgs += '/optimize+' }

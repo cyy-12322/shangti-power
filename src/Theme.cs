@@ -406,6 +406,56 @@ namespace ShangtiPower
     }
 
     /// <summary>无边框圆角按钮（渐变 + 悬浮高亮）。</summary>
+    /// <summary>圆角单行输入框（内嵌无边框 TextBox，外观与下拉框一致）。</summary>
+    public class InputField : Control
+    {
+        private readonly TextBox _box;
+        public string Placeholder { get; set; }
+
+        public InputField()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint
+                | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw
+                | ControlStyles.SupportsTransparentBackColor, true);
+            BackColor = Color.Transparent;
+            Font = Theme.F(12.5f, FontStyle.Regular);
+            _box = new TextBox();
+            _box.BorderStyle = BorderStyle.None;
+            _box.Font = Font;
+            _box.ForeColor = Theme.TextPrimary;
+            _box.BackColor = Color.White;
+            Controls.Add(_box);
+            _box.GotFocus += delegate { Invalidate(); };
+            _box.LostFocus += delegate { Invalidate(); };
+        }
+
+        public override string Text
+        {
+            get { return _box.Text; }
+            set { _box.Text = value == null ? "" : value; }
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            int h = _box.PreferredHeight;
+            _box.SetBounds(14, Math.Max(2, (Height - h) / 2), Math.Max(10, Width - 28), h);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            RectangleF r = new RectangleF(0.5f, 0.5f, Width - 2, Height - 2);
+            Theme.FillRound(g, r, 12f, Color.White);
+            Theme.StrokeRound(g, r, 12f, _box.Focused ? Theme.Blue : Theme.CardBorder, _box.Focused ? 1.6f : 1.1f);
+            if (!_box.Focused && string.IsNullOrEmpty(_box.Text) && !string.IsNullOrEmpty(Placeholder))
+            {
+                Theme.Text(g, Placeholder, Theme.F(12f, FontStyle.Regular), Theme.TextDim,
+                    new RectangleF(16, 0, Width - 30, Height), StringAlignment.Near);
+            }
+        }
+    }
     public class AccentButton : Control
     {
         public Color ColorTop { get; set; }

@@ -23,6 +23,20 @@ namespace ShangtiPower
         public bool AutoStart { get; set; }
         public bool PayHintShown { get; set; }
 
+        /// <summary>缴费用姓名（仅内存，保存时加密）。</summary>
+        [ScriptIgnore]
+        public string PayName { get; set; }
+
+        /// <summary>缴费用学号/账号（仅内存，保存时加密）。</summary>
+        [ScriptIgnore]
+        public string PayStudentNo { get; set; }
+
+        /// <summary>DPAPI 加密后的姓名字节（Base64）。</summary>
+        public string PayNameCipher { get; set; }
+
+        /// <summary>DPAPI 加密后的学号字节（Base64）。</summary>
+        public string PayNoCipher { get; set; }
+
         public AppConfig()
         {
             LowThreshold = 20;
@@ -51,6 +65,8 @@ namespace ShangtiPower
 
         public void Save()
         {
+            PayNameCipher = Program.ProtectText(PayName);
+            PayNoCipher = Program.ProtectText(PayStudentNo);
             JavaScriptSerializer ser = new JavaScriptSerializer();
             File.WriteAllText(Program.ConfigPath, ser.Serialize(this), Encoding.UTF8);
             Program.Log("保存配置: " + DisplayName);
@@ -63,7 +79,13 @@ namespace ShangtiPower
                 if (!File.Exists(Program.ConfigPath)) return null;
                 string json = File.ReadAllText(Program.ConfigPath, Encoding.UTF8);
                 JavaScriptSerializer ser = new JavaScriptSerializer();
-                return ser.Deserialize<AppConfig>(json);
+                AppConfig cfg = ser.Deserialize<AppConfig>(json);
+                if (cfg != null)
+                {
+                    cfg.PayName = Program.UnprotectText(cfg.PayNameCipher);
+                    cfg.PayStudentNo = Program.UnprotectText(cfg.PayNoCipher);
+                }
+                return cfg;
             }
             catch (Exception ex)
             {

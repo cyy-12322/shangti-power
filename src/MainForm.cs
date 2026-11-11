@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Text;
+using System.IO;
 using System.Drawing.Drawing2D;
 using System.Threading;
 using System.Windows.Forms;
@@ -26,6 +28,7 @@ namespace ShangtiPower
         private ArcGauge _gauge;
         private AccentButton _btnRefresh;
         private AccentButton _btnPay;
+        private AccentButton _btnPayInfo;
 
         private AccentButton _btnRepick;
         private DarkDropdown _threshold;
@@ -117,9 +120,21 @@ namespace ShangtiPower
             _btnRepick.ForeColor = Theme.BlueDark;
             _btnRepick.Radius = 12f;
             _btnRepick.Font = Theme.F(12.5f, FontStyle.Bold);
-            _btnRepick.SetBounds(40, 158, 180, 40);
+            _btnRepick.SetBounds(40, 158, 150, 40);
             _btnRepick.Click += delegate { Repick(); };
             Controls.Add(_btnRepick);
+
+            _btnPayInfo = new AccentButton();
+            _btnPayInfo.Text = "缴费信息";
+            _btnPayInfo.ColorTop = Color.FromArgb(255, 246, 250, 255);
+            _btnPayInfo.ColorBottom = Color.FromArgb(255, 230, 241, 255);
+            _btnPayInfo.BorderColor = Color.FromArgb(200, 214, 243);
+            _btnPayInfo.ForeColor = Theme.BlueDark;
+            _btnPayInfo.Radius = 12f;
+            _btnPayInfo.Font = Theme.F(12.5f, FontStyle.Bold);
+            _btnPayInfo.SetBounds(200, 158, 150, 40);
+            _btnPayInfo.Click += delegate { OpenPayInfo(); };
+            Controls.Add(_btnPayInfo);
 
             _threshold = new DarkDropdown();
             _threshold.Placeholder = "选择阈值";
@@ -181,6 +196,7 @@ namespace ShangtiPower
             Theme.SetVisible(_btnRefresh, main);
             Theme.SetVisible(_btnPay, main);
             Theme.SetVisible(_btnRepick, !main);
+            Theme.SetVisible(_btnPayInfo, !main);
             Theme.SetVisible(_threshold, !main);
             Theme.SetVisible(_autoStart, !main);
             Theme.SetVisible(_btnSave, !main);
@@ -218,20 +234,59 @@ namespace ShangtiPower
             _btnPay.Invalidate();
         }
 
+        private void OpenPayInfo()
+        {
+            using (PayInfoForm f = new PayInfoForm(_cfg.PayName, _cfg.PayStudentNo))
+            {
+                if (f.ShowDialog(this) == DialogResult.OK)
+                {
+                    _cfg.PayName = f.PayName;
+                    _cfg.PayStudentNo = f.PayStudentNo;
+                    try { _cfg.Save(); } catch (Exception ex) { Program.Log("保存缴费信息失败: " + ex.Message); }
+                    Program.Log("已保存缴费信息（加密存储）");
+                }
+            }
+        }
+
         private void OpenPayPage()
         {
             try
             {
-                if (_cfg != null && !_cfg.PayHintShown)
+                // 没填姓名时先引导填写（缴费页需要姓名才能匹配账户）
+                if (_cfg == null || string.IsNullOrEmpty(_cfg.PayName))
                 {
-                    string tip = "接下来会打开浏览器，进入学校官方的「校园安心付」缴费页面。\n\n"
-                        + "· 在页面里选择你的校区 / 楼栋 / 楼层 / 房间，填上姓名即可缴费\n"
-                        + "· 本软件只负责打开这个官方页面，不参与支付，也不会保存你的姓名或支付信息";
-                    MessageBox.Show(this, tip, "去缴费", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    _cfg.PayHintShown = true;
-                    try { _cfg.Save(); } catch { }
+                    DialogResult r = MessageBox.Show(this,
+                        "要自动带入你的姓名 / 房间信息，需要先填写一次「缴费信息」。\n\n" +
+                        "现在就填写吗？（只保存在本机并加密，不参与支付）",
+                        "去缴费", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                    if (r == DialogResult.Cancel) return;
+                    if (r == DialogResult.Yes)
+                    {
+                        OpenPayInfo();
+                        if (string.IsNullOrEmpty(_cfg.PayName)) return;
+                    }
+                    else
+                    {
+                        Process.Start(new ProcessStartInfo(Program.PayUrl) { UseShellExecute = true });
+                        return;
+                    }
                 }
-                Process.Start(new ProcessStartInfo(Program.PayUrl) { UseShellExecute = true });
+
+                // 生成一个本地表单页：自动以 POST 提交到学校官方缴费页，带入姓名 + 房间
+                string html = Program.BuildPayFormHtml(_cfg);
+                string file = Path.Combine(Path.GetTempPath(),
+                    "SudianMonitor_pay_" + Guid.NewGuid().ToString("N") + ".html");
+                File.WriteAllText(file, html, Encoding.UTF8);
+                Process.Start(file);
+                // 10 秒后删除这个临时页面（里面只含你的姓名/学号/房间）
+                try
+                {
+                    Process.Start(new ProcessStartInfo("cmd.exe",
+                        "/c ping -n 12 127.0.0.1 >nul & del /f /q \"" + file + "\"")
+                    { WindowStyle = ProcessWindowStyle.Hidden, CreateNoWindow = true });
+                }
+                catch { }
+                Program.Log("已打开缴费页（自动带入缴费信息）");
             }
             catch (Exception ex)
             {

@@ -18,10 +18,69 @@ namespace ShangtiPower
     {
         public const string AppName = "宿电监测";
         public const string AppId = "SudianMonitor";
-        public const string Version = "1.4.1";
+        public const string Version = "1.5.0";
         public const string RepoUrl = "https://github.com/cyy-12322/shangti-power";
         /// <summary>学校官方缴费入口（校园安心付）。</summary>
         public const string PayUrl = "https://axinfu.sus.edu.cn:8082/electric/page/login";
+        /// <summary>官方缴费表单提交地址（浏览器直接 POST 进入缴费页）。</summary>
+        public const string PaySubmitUrl = "https://axinfu.sus.edu.cn:8082/electric/page/home";
+
+        private static readonly byte[] PayEntropy = Encoding.UTF8.GetBytes("SudianMonitor.PayInfo.v1");
+
+        /// <summary>生成一个本地 HTML：打开后用 POST 表单直接进入学校缴费页，带入姓名与房间。</summary>
+        public static string BuildPayFormHtml(AppConfig cfg)
+        {
+            StringBuilder h = new StringBuilder();
+            h.Append("<!DOCTYPE html><html><head><meta charset=\"utf-8\">");
+            h.Append("<title>正在打开校园安心付…</title>");
+            h.Append("<style>body{font-family:'Microsoft YaHei',sans-serif;color:#5b6b8c;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f6f9ff}</style>");
+            h.Append("</head><body onload=\"document.forms[0].submit()\">");
+            h.Append("<div>正在打开学校缴费页面，请稍候…</div>");
+            h.Append("<form method=\"post\" action=\"" + PaySubmitUrl + "\">");
+            AppendHidden(h, "areaId", cfg.CampusId);
+            AppendHidden(h, "areaName", cfg.CampusName);
+            AppendHidden(h, "architectureId", cfg.BuildingId);
+            AppendHidden(h, "architectureName", cfg.BuildingName);
+            AppendHidden(h, "floor", cfg.FloorId);
+            AppendHidden(h, "floorName", cfg.FloorName);
+            AppendHidden(h, "roomId", cfg.RoomId);
+            AppendHidden(h, "roomName", cfg.RoomName);
+            AppendHidden(h, "custName", cfg.PayName);
+            AppendHidden(h, "custNo", cfg.PayStudentNo);
+            h.Append("</form></body></html>");
+            return h.ToString();
+        }
+
+        private static void AppendHidden(StringBuilder h, string name, string value)
+        {
+            h.Append("<input type=\"hidden\" name=\"" + name + "\" value=\""
+                + System.Web.HttpUtility.HtmlEncode(string.IsNullOrEmpty(value) ? "" : value.Trim()) + "\">");
+        }
+        public static string ProtectText(string plain)
+        {
+            if (string.IsNullOrEmpty(plain)) return "";
+            try
+            {
+                byte[] data = Encoding.UTF8.GetBytes(plain);
+                byte[] enc = System.Security.Cryptography.ProtectedData.Protect(
+                    data, PayEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+                return Convert.ToBase64String(enc);
+            }
+            catch (Exception ex) { Log("加密失败: " + ex.Message); return ""; }
+        }
+
+        public static string UnprotectText(string cipher)
+        {
+            if (string.IsNullOrEmpty(cipher)) return "";
+            try
+            {
+                byte[] enc = Convert.FromBase64String(cipher);
+                byte[] data = System.Security.Cryptography.ProtectedData.Unprotect(
+                    enc, PayEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+                return Encoding.UTF8.GetString(data);
+            }
+            catch (Exception ex) { Log("解密失败: " + ex.Message); return ""; }
+        }
 
         /// <summary>演示模式：不访问网络，用示例数据渲染界面（仅用于截图/设计评审）。</summary>
         public static bool DemoMode;
@@ -372,7 +431,51 @@ namespace ShangtiPower
             }
             if (HasArg(args, "--version")) { Emit("ShangtiPower " + Version); return 0; }
 
-            if (HasArg(args, "--preview-setup"))
+            if (HasArg(args, "--selftest-payroundtrip"))
+        {
+            AppConfig t = AppConfig.Load();
+            if (t == null) t = new AppConfig();
+            t.CampusId = "1"; t.CampusName = "示例校区";
+            t.BuildingId = "1"; t.BuildingName = "01号楼";
+            t.FloorId = "2-1"; t.FloorName = "2-1楼";
+            t.RoomId = "101"; t.RoomName = "2-101";
+            t.PayName = "张三";
+            t.PayStudentNo = "20230001";
+            t.Save();
+            AppConfig back = AppConfig.Load();
+            bool ok = back != null && back.PayName == "张三" && back.PayStudentNo == "20230001";
+            Emit("ROUNDTRIP " + (ok ? "OK" : "FAIL"));
+            return ok ? 0 : 1;
+        }
+        if (HasArg(args, "--preview-payinfo"))
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Emit("PREVIEW-PAYINFO start");
+            Application.Run(new PayInfoForm("张三", "20230001"));
+            Emit("PREVIEW-PAYINFO end");
+            return 0;
+        }
+
+        if (HasArg(args, "--dump-payform"))
+        {
+            string path = ArgValue(args, "--dump-payform");
+            AppConfig payCfg = AppConfig.Load();
+            if (payCfg == null)
+            {
+                payCfg = new AppConfig();
+                payCfg.CampusId = "1"; payCfg.CampusName = "示例校区";
+                payCfg.BuildingId = "1"; payCfg.BuildingName = "01号楼";
+                payCfg.FloorId = "2-1"; payCfg.FloorName = "2-1楼";
+                payCfg.RoomId = "101"; payCfg.RoomName = "2-101";
+            }
+            payCfg.PayName = string.IsNullOrEmpty(payCfg.PayName) ? "张三" : payCfg.PayName;
+            payCfg.PayStudentNo = string.IsNullOrEmpty(payCfg.PayStudentNo) ? "20230001" : payCfg.PayStudentNo;
+            File.WriteAllText(path, BuildPayFormHtml(payCfg), Encoding.UTF8);
+            Emit("PAYFORM -> " + path);
+            return 0;
+        }
+        if (HasArg(args, "--preview-setup"))
             {
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
