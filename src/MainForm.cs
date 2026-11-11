@@ -202,10 +202,11 @@ namespace ShangtiPower
                 && _result.Power <= _cfg.LowThreshold;
             if (low)
             {
-                _btnPay.ColorTop = Color.FromArgb(255, 255, 248, 232);
-                _btnPay.ColorBottom = Color.FromArgb(255, 255, 236, 200);
-                _btnPay.BorderColor = Color.FromArgb(210, 176, 110);
-                _btnPay.ForeColor = Color.FromArgb(190, 118, 12);
+                // 与低电量圆环的红色同一色系：浅红底 + 红描边 + 红字
+                _btnPay.ColorTop = Color.FromArgb(255, 255, 249, 249);
+                _btnPay.ColorBottom = Color.FromArgb(255, 255, 235, 236);
+                _btnPay.BorderColor = Color.FromArgb(232, 158, 162);
+                _btnPay.ForeColor = Color.FromArgb(198, 46, 52);
             }
             else
             {

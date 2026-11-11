@@ -18,7 +18,7 @@ namespace ShangtiPower
     {
         public const string AppName = "宿电监测";
         public const string AppId = "SudianMonitor";
-        public const string Version = "1.4.0";
+        public const string Version = "1.4.1";
         public const string RepoUrl = "https://github.com/cyy-12322/shangti-power";
         /// <summary>学校官方缴费入口（校园安心付）。</summary>
         public const string PayUrl = "https://axinfu.sus.edu.cn:8082/electric/page/login";
