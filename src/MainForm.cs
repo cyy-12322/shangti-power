@@ -254,6 +254,21 @@ namespace ShangtiPower
         {
             try
             {
+                // 第一次缴费：提醒线上到账会延迟（3 小时内属正常）
+                if (_cfg != null && !_cfg.PayHintShown)
+                {
+                    MessageBox.Show(this,
+                        "第一次缴费请注意：\n\n" +
+                        "线上充值到账会有延迟，通常几分钟内到账，\n" +
+                        "最长约 3 小时到账都属正常，请耐心等待，不要重复支付。\n\n" +
+                        "如果超过 3 小时还没到账：\n" +
+                        "· 先在官方页面点「查看历史记录」确认订单状态\n" +
+                        "· 仍未到账请联系学校后勤/信息中心，提供时间、金额、房间号",
+                        "缴费到账提醒", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    _cfg.PayHintShown = true;
+                    try { _cfg.Save(); } catch { }
+                }
+
                 // 没填姓名时先引导填写（缴费页需要姓名才能匹配账户）
                 if (_cfg == null || string.IsNullOrEmpty(_cfg.PayName))
                 {
