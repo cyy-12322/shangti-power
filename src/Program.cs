@@ -18,7 +18,7 @@ namespace ShangtiPower
     {
         public const string AppName = "宿电监测";
         public const string AppId = "SudianMonitor";
-        public const string Version = "1.6.0";
+        public const string Version = "1.6.1";
         public const string RepoUrl = "https://github.com/cyy-12322/shangti-power";
         /// <summary>学校官方缴费入口（校园安心付）。</summary>
         public const string PayUrl = "https://axinfu.sus.edu.cn:8082/electric/page/login";
@@ -79,6 +79,38 @@ namespace ShangtiPower
 
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
+        /// <summary>官方缴费表单提交地址（浏览器直接 POST 进入缴费页）。</summary>
+        public const string PaySubmitUrl = "https://axinfu.sus.edu.cn:8082/electric/page/home";
+
+        /// <summary>生成一个本地 HTML：打开后用 POST 表单直接进入学校缴费页，带入姓名与房间。</summary>
+        public static string BuildPayFormHtml(AppConfig cfg)
+        {
+            StringBuilder h = new StringBuilder();
+            h.Append("<!DOCTYPE html><html><head><meta charset=\"utf-8\">");
+            h.Append("<title>正在打开校园安心付…</title>");
+            h.Append("<style>body{font-family:'Microsoft YaHei',sans-serif;color:#5b6b8c;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f6f9ff}</style>");
+            h.Append("</head><body onload=\"document.forms[0].submit()\">");
+            h.Append("<div>正在打开学校缴费页面，请稍候…</div>");
+            h.Append("<form method=\"post\" action=\"" + PaySubmitUrl + "\">");
+            AppendHidden(h, "areaId", cfg.CampusId);
+            AppendHidden(h, "areaName", cfg.CampusName);
+            AppendHidden(h, "architectureId", cfg.BuildingId);
+            AppendHidden(h, "architectureName", cfg.BuildingName);
+            AppendHidden(h, "floor", cfg.FloorId);
+            AppendHidden(h, "floorName", cfg.FloorName);
+            AppendHidden(h, "roomId", cfg.RoomId);
+            AppendHidden(h, "roomName", cfg.RoomName);
+            AppendHidden(h, "custName", cfg.PayName);
+            AppendHidden(h, "custNo", cfg.PayStudentNo);
+            h.Append("</form></body></html>");
+            return h.ToString();
+        }
+
+        private static void AppendHidden(StringBuilder h, string name, string value)
+        {
+            h.Append("<input type=\"hidden\" name=\"" + name + "\" value=\""
+                + System.Web.HttpUtility.HtmlEncode(string.IsNullOrEmpty(value) ? "" : value.Trim()) + "\">");
+        }
         public static string ProtectText(string plain)
         {
             if (string.IsNullOrEmpty(plain)) return "";
@@ -469,23 +501,6 @@ namespace ShangtiPower
             bool ok = back != null && back.PayName == "张三" && back.PayStudentNo == "20230001";
             Emit("ROUNDTRIP " + (ok ? "OK" : "FAIL"));
             return ok ? 0 : 1;
-        }
-        if (HasArg(args, "--preview-payguide"))
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            AppConfig pc = AppConfig.Load();
-            if (pc == null)
-            {
-                pc = new AppConfig();
-                pc.CampusId = "1"; pc.CampusName = "示例校区";
-                pc.BuildingId = "1"; pc.BuildingName = "01号楼";
-                pc.FloorId = "2-1"; pc.FloorName = "2-1楼";
-                pc.RoomId = "101"; pc.RoomName = "2-101";
-            }
-            pc.PayName = string.IsNullOrEmpty(pc.PayName) ? "张三" : pc.PayName;
-            Application.Run(new PaymentGuideForm(pc));
-            return 0;
         }
         if (HasArg(args, "--preview-payinfo"))
         {
